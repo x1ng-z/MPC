@@ -39,12 +39,24 @@ class MinJ:
     def setu0(self,u0):
         self.u0 = u0
 
+    def setUmin(self,Umin):
+        self.Umin = Umin
+
+    def setUmax(self,Umax):
+        self.Umax = Umax
+
+    def setYmin(self,Ymin):
+        self.Ymin = Ymin
+
+    def setYmax(self,Ymax):
+        self.Ymax = Ymax
+
     def J(self,delu):
 
         e=(self.wp - (self.y0 + np.dot(self.A, delu))).transpose()
         aa=np.dot(np.dot(e.transpose(), self.Q), e) + np.dot(np.dot(delu.transpose(), self.R), delu)
-        print("cost")
-        print(aa)
+        # print("cost")
+        # print(aa)
         return aa[0][0]
 
     def gradientJ(self,deltu):
@@ -60,7 +72,7 @@ class MinJ:
     def comput(self):
         #bounds = Bounds([-10, 10], [-10, 10])
         #print("delUmin")
-        print((self.Umin - self.u0).transpose()[0,:].shape)
+        #print((self.Umin - self.u0).transpose()[0,:].shape)
         linear_constraintu = LinearConstraint(self.B , (self.Umin-self.u0).transpose()[0,:],(self.Umax-self.u0).transpose()[0,:])
         linear_constrainty = LinearConstraint(self.A,(self.Ymin-self.y0).transpose()[0,:],(self.Ymax-self.y0).transpose()[0,:])
         x0=np.zeros(self.M*self.m).transpose()

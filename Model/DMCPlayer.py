@@ -4,6 +4,7 @@ import DynamicMatrixControl
 import Help
 import QP
 
+
 x0 = np.array([1.3, 0.7, 0.8, 1.9, 1.2])
 ap=x0[:-1]
 a=np.eye(4)
@@ -13,7 +14,7 @@ print(a[0:2,:])
 P=12
 
 '''控制时域长度'''
-M=3
+M=6
 
 '''输入个数'''
 m=2
