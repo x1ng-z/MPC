@@ -43,10 +43,18 @@ if __name__ == '__main__':
 
     '''前馈数量'''
     feedforwardNum=modle["f"]
+
+    unhandleff_time_series=np.array(modle["ff"])
     '''前馈的响应'''
     B_time_series=0
     if feedforwardNum!=0:
-        B_time_series=modle["ff"]
+        B_time_series=np.zeros((p*N,feedforwardNum))
+        for outi in range(p):
+            for ini in range(feedforwardNum):
+                B_time_series[outi*N:(outi+1)*N,ini]=unhandleff_time_series[outi,ini]
+
+
+
     '''前馈变动赋值'''
     # delta_v=np.zeros((feedforwardNum,100))
     # delta_v[0,:]=np.arange(0,100)*0.001#仅用于测试
@@ -55,7 +63,7 @@ if __name__ == '__main__':
     #
     #
     '''时序域 Matrix'''
-    qi=np.array([1000, 1])
+    qi=np.array([990, 1])
     '''控制域 Matrix'''
     ri=np.array([1000000, 300])
     '''H Matrix'''
@@ -168,7 +176,7 @@ if __name__ == '__main__':
         '''限制输入  Umin<U<Umax'''
         limitU =np.array(opcModleData["limitU"]) #np.array(opcModleData["limitU"])#np.array([[0, 100], [0, 100]])
 
-        U[:,0]=opcModleData["U"]
+        U[:,0]=np.array(opcModleData["U"])
         '''分解为Umin和Umax'''
         Umin = np.zeros((m * M, 1))
         Umax = np.zeros((m * M, 1))
@@ -191,10 +199,10 @@ if __name__ == '__main__':
         '''加上前馈'''
         if feedforwardNum!=0:
             if isfirst:
-                y_0N=tools.buildY0(p,N,opcModleData['y0'])+np.dot(B_time_series,np.array(opcModleData["deltff"]).transpose())
+                y_0N=tools.buildY0(p, N, opcModleData['y0'])+np.dot(B_time_series, np.array(opcModleData["deltff"]).transpose()).reshape(1,-1).T
                 isfirst=False
             else:
-                y_0N = tools.buildY0(p, N, y_0N) + np.dot(B_time_series,np.array(opcModleData["deltff"]).transpose())
+                y_0N = tools.buildY0(p, N, y_0N) + np.dot(B_time_series,np.array(opcModleData["deltff"]).transpose()).reshape(1,-1).T
         else:
             if isfirst:
                 y_0N=tools.buildY0(p,N,np.array(opcModleData['y0']))
