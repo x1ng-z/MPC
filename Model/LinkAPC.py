@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     '''前馈数量'''
     feedforwardNum=modle["f"]
-    unhandleff_time_series=0;
+    unhandleff_time_series=0
     if feedforwardNum!=0:
         unhandleff_time_series=np.array(modle["ff"])
     '''前馈的响应'''
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     #
     #
     '''时序域 Matrix'''
-    qi=np.array([990, 1])
+    qi=np.array([1000, 1])
     '''控制域 Matrix'''
     ri=np.array([1000000, 300])
     '''H Matrix'''
