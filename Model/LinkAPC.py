@@ -43,8 +43,9 @@ if __name__ == '__main__':
 
     '''前馈数量'''
     feedforwardNum=modle["f"]
-
-    unhandleff_time_series=np.array(modle["ff"])
+    unhandleff_time_series=0;
+    if feedforwardNum!=0:
+        unhandleff_time_series=np.array(modle["ff"])
     '''前馈的响应'''
     B_time_series=0
     if feedforwardNum!=0:
