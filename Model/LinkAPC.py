@@ -21,10 +21,10 @@ if __name__ == '__main__':
     # print(a[0:2,:])
 
     '''预测时域长度'''
-    P=200#modle["P"]
+    P=100#modle["P"]200 date 3/25
 
     '''控制时域长度'''
-    M=6#modle["M"]
+    M=8#modle["M"]6 date 3/25
 
     '''输入个数'''
     m=modle["m"]
@@ -35,8 +35,8 @@ if __name__ == '__main__':
     '''建模时域'''
     N=modle["N"]
 
-    # '''采样时间'''
-    # delta=1
+    '''采样时间'''
+    sampleStep=modle["S"]
     #
     # '''滞后时间'''
     # Tao=[0,0,0,0]#[5,2,12,20]
@@ -64,9 +64,9 @@ if __name__ == '__main__':
     #
     #
     '''时序域 Matrix'''
-    qi=np.array([1000, 1])
+    qi=np.array([800, 1])
     '''控制域 Matrix'''
-    ri=np.array([1000000, 300])
+    ri=np.array([1E8, 300])
     '''H Matrix'''
     hi=np.array([1, 1])
     # '''Aim Matrix'''
@@ -201,9 +201,17 @@ if __name__ == '__main__':
         if feedforwardNum!=0:
             if isfirst:
                 y_0N=tools.buildY0(p, N, opcModleData['y0'])+np.dot(B_time_series, np.array(opcModleData["deltff"]).transpose()).reshape(1,-1).T
+                print("B")
+                print(np.dot(B_time_series, np.array(opcModleData["deltff"]).transpose()).reshape(1,-1).T)
+                print("y0N")
+                print(y_0N)
                 isfirst=False
             else:
                 y_0N = tools.buildY0(p, N, y_0N) + np.dot(B_time_series,np.array(opcModleData["deltff"]).transpose()).reshape(1,-1).T
+                print("B")
+                print(np.dot(B_time_series, np.array(opcModleData["deltff"]).transpose()).reshape(1, -1).T)
+                print("y0N")
+                print( y_0N)
         else:
             if isfirst:
                 y_0N=tools.buildY0(p,N,np.array(opcModleData['y0']))
@@ -285,7 +293,7 @@ if __name__ == '__main__':
         '''等待到下一次将要输出时候，获取实际值，并与预测值的差距'''
         firstNodePredict=np.dot(K, y_predictionN)#提取上一个作用deltau后，第一个预测值
 
-        time.sleep(1)
+        time.sleep(sampleStep)
 
         resp_opc = requests.get("http://192.168.165.187:8080/AILab/python/opcread/%d.do" % modleId)
         opcModleData = json.loads(resp_opc.text)
@@ -293,6 +301,8 @@ if __name__ == '__main__':
         y_Real[:,0]=np.array(opcModleData['y0'])#firstNodePredict.transpose()#这里为了模拟，先把他赋值给
 
         e=y_Real[:,0]-firstNodePredict
+        print("e")
+        print(e)
 
         y_Ncor[:, 0] = y_predictionN + np.dot(H, e.transpose())
         y_0N[:, 0] = np.dot(S, y_Ncor[:, 0])
