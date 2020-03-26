@@ -31,6 +31,6 @@ class DMC:
 
 
 
-        deltau=np.dot(np.dot(np.linalg.inv(np.dot(np.dot(A.transpose(), self.Q), A) + self.R_t), A.transpose()), self.Q)
+        deltau=np.dot(np.dot(np.linalg.pinv(np.dot(np.dot(A.transpose(), self.Q), A) + self.R_t), A.transpose()), self.Q)
         RESULTS=   {'deltau':deltau, 'A':A}
         return RESULTS
