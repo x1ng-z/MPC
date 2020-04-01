@@ -55,9 +55,16 @@ class MinJ:
 
         e=(self.wp - (self.y0 + np.dot(self.A, delu))).transpose()
         aa=np.dot(np.dot(e.transpose(), self.Q), e) + np.dot(np.dot(delu.transpose(), self.R), delu)
-        # print("cost")
-        # print(aa)
         return aa[0][0]
+
+    # def J_with_Balance(self, delu):
+    #
+    #     e = (self.wp - (self.y0 + np.dot(self.A, delu))).transpose()
+    #     aa = np.dot(np.dot(e.transpose(), self.Q), e) + np.dot(np.dot(delu.transpose(), self.R), delu)
+    #     # print("cost")
+    #     # print(aa)
+    #     cost=aa[0][0]+np.std(np.add(self.u0, delu))*self.Balance
+    #     return cost
 
     def gradientJ(self,deltu):
         will=self.y0+np.dot(self.A,deltu)
@@ -74,15 +81,15 @@ class MinJ:
         #print("delUmin")
         #print((self.Umin - self.u0).transpose()[0,:].shape)
         linear_constraintu = LinearConstraint(self.B , (self.Umin-self.u0).transpose()[0,:],(self.Umax-self.u0).transpose()[0,:])
-        linear_constrainty = LinearConstraint(self.A,(self.Ymin-self.y0).transpose()[0,:],(self.Ymax-self.y0).transpose()[0,:])
+        #linear_constrainty = LinearConstraint(self.A,(self.Ymin-self.y0).transpose()[0,:],(self.Ymax-self.y0).transpose()[0,:])
         x0=np.zeros(self.M*self.m).transpose()
         res = minimize(self.J, x0, method='trust-constr',
                        # jac=self.gradientJ,
                        # hess=self.hesionJ,
                        jac="2-point", hess=SR1(),
-                       constraints=[linear_constraintu,linear_constrainty],
-
+                       constraints=[linear_constraintu],
+                       #constraints=[linear_constraintu,linear_constrainty],
                        options={'verbose': 1,'disp': True}
                        )
-        print(res.x)
-        return res.x
+
+        return res

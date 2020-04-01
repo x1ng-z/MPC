@@ -63,5 +63,9 @@ x0 = np.array([0.5, 0])
 res = minimize(rosen, x0, method='trust-constr', jac=rosen_der, hess=rosen_hess,
                constraints=[linear_constraint ],#nonlinear_constraint
                options={'verbose': 2}, bounds=bounds)
-
+print(res.success)
 print(res.x)
+costtime=res.execution_time
+
+print(res.execution_time)
+
