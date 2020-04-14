@@ -274,7 +274,7 @@ if __name__ == '__main__':
             PPP=np.arange(0,N)
             ax1.plot(PPP,linesUpAndDown[0,:],'-r')
             ax1.plot(PPP,linesUpAndDown[1,:],'-k')
-            ax1.plot(PPP,y_0N,'-k')
+            ax1.plot(PPP,y_0N,'-g')
 
         if((linesUpAndDown[0,:]>=y_0N).all() and (linesUpAndDown[1,:]<=y_0N).all()):
             print("进行更新")
