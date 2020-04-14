@@ -247,7 +247,13 @@ for time_devi in range(tend-1):
     '''计算得到m个输入的M个连续的输出的deltaU'''
     deltaU[:, time_devi] = np.dot(results['deltau'], deltaD[:, time_devi])
     '''校验输入值是否超过限制'''
-    willUM=tools.buildU(U[:, time_devi], m, M)+deltaU[:, time_devi].reshape(m*M,1)
+    B_Matrix = np.zeros((m * M, m * M))
+    for indexIn in range(m):
+        for noderow in range(M):
+            for nodecol in range(M):
+                if (nodecol <= noderow):
+                    B_Matrix[indexIn * M + noderow, indexIn * M + nodecol] = 1
+    willUM=tools.buildU(U[:, time_devi], m, M)+np.dot(B_Matrix,deltaU[:, time_devi].reshape(m*M,1))
 
 
 

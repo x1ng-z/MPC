@@ -233,7 +233,13 @@ if __name__ == '__main__':
         '''计算得到m个输入的M个连续的输出的deltaU'''
         deltaU[:, 0] = np.dot(results['deltau'], deltaY[:, 0])
         '''校验输入值是否超过限制'''
-        willUM=tools.buildU(np.array(opcModleData["U"]), m, M)+deltaU[:, 0].reshape(m*M,1)
+        B_Matrix = np.zeros((m * M, m * M))
+        for indexIn in range(m):
+            for noderow in range(M):
+                for nodecol in range(M):
+                    if (nodecol <= noderow):
+                        B_Matrix[indexIn * M + noderow, indexIn * M + nodecol] = 1
+        willUM=tools.buildU(np.array(opcModleData["U"]), m, M)+np.dot(B_Matrix,deltaU[:, 0].reshape(m*M,1))
 
         '''检查增量下界上界'''
         if((Umin<=willUM).all() and (Umax>=willUM).all()):
@@ -262,10 +268,10 @@ if __name__ == '__main__':
             print("Costtime")
             print(Costtime)
 
-        '''得到m个输入的本次作用增量'''
-        thisTimedelU=np.dot(L, deltaU[:,0])
-        '''加上本次增量的系统输入'''
-        U[:,0]=U[:,0]+thisTimedelU.transpose()
+        # '''得到m个输入的本次作用增量'''
+        # thisTimedelU=np.dot(L, deltaU[:,0])
+        # '''加上本次增量的系统输入'''
+        # U[:,0]=U[:,0]+thisTimedelU.transpose()
 
         '''新增加死区时间和漏斗初始值'''
         linesUpAndDown=tools.buildFunel(np.array(opcModleData['wi']), np.array(opcModleData['deadZones']), np.array(opcModleData['funelInitValues']), N, p)
@@ -286,14 +292,15 @@ if __name__ == '__main__':
             thisTimedelU = np.dot(L, deltaU[:, 0])
             '''加上本次增量的系统输入'''
             U[:, 0] = U[:, 0] + thisTimedelU.transpose()
+            if DEBUG:
+                print("u", U[:, 0])
+                print("deltau", thisTimedelU.transpose())
 
 
         payload = {'id': modleId, 'U': U[:,0]}
         write_resp=requests.get("http://localhost:8080/AILab/python/opcwrite.do",params=payload)
         if DEBUG:
             print(write_resp.text)
-            print("u",U[:,0])
-            print("deltau", thisTimedelU.transpose())
 
         #这里要改成输出周期结束以后再取读取反馈值
         time.sleep((outStep-Costtime) if ((outStep-Costtime)>= 0) else 0)#third=outStep-Costtime if outStep-Costtime>= 0 else 0  判断是否经过QP
