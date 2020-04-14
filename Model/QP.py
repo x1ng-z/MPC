@@ -86,7 +86,10 @@ class MinJ:
         res = minimize(self.J, x0, method='trust-constr',
                        # jac=self.gradientJ,
                        # hess=self.hesionJ,
-                       jac="2-point", hess=SR1(),
+                       jac="2-point",
+                       # jac=self.gradientJ,
+                       hess=SR1(),
+                       #hess=self.hesionJ,
                        constraints=[linear_constraintu],
                        #constraints=[linear_constraintu,linear_constrainty],
                        options={'verbose': 1,'disp': True}

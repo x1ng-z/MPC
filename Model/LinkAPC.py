@@ -173,7 +173,12 @@ if __name__ == '__main__':
         resp_opc=requests.get("http://localhost:8080/AILab/python/opcread/%d.do" % modleId)
         opcModleData=json.loads(resp_opc.text)
         # testwi=np.array(opcModleData['wi'])
+
         W_i=tools.biuldWi(p,P,np.array(opcModleData['wi']))#np.array([800])
+
+
+
+
         '''限制输入  Umin<U<Umax'''
         limitU =np.array(opcModleData["limitU"]) #np.array(opcModleData["limitU"])#np.array([[0, 100], [0, 100]])
         U[:,0]=np.array(opcModleData["U"])# 上一次MV给定量
@@ -260,8 +265,27 @@ if __name__ == '__main__':
         '''得到m个输入的本次作用增量'''
         thisTimedelU=np.dot(L, deltaU[:,0])
         '''加上本次增量的系统输入'''
-
         U[:,0]=U[:,0]+thisTimedelU.transpose()
+
+        '''新增加死区时间和漏斗初始值'''
+        linesUpAndDown=tools.buildFunel(W_i, np.array(opcModleData['deadZones']), np.array(opcModleData['funelInitValues']), N, p)
+        if DEBUG:
+            fig, ax1 = plt.subplots()
+            PPP=np.arange(0,N)
+            ax1.plot(PPP,linesUpAndDown[0,:],'-r')
+            ax1.plot(PPP,linesUpAndDown[1,:],'-k')
+            ax1.plot(PPP,y_0N,'-k')
+
+        if((linesUpAndDown[0,:]>=y_0N).all() and (linesUpAndDown[1,:]<=y_0N).all()):
+            print("进行更新")
+            pass
+        else:
+            '''得到m个输入的本次作用增量'''
+            thisTimedelU = np.dot(L, deltaU[:, 0])
+            '''加上本次增量的系统输入'''
+            U[:, 0] = U[:, 0] + thisTimedelU.transpose()
+
+
         payload = {'id': modleId, 'U': U[:,0]}
         write_resp=requests.get("http://localhost:8080/AILab/python/opcwrite.do",params=payload)
         if DEBUG:
@@ -301,13 +325,13 @@ if __name__ == '__main__':
 
 
 
-    fig, ax1 = plt.subplots()
-    PPP=np.arange(0,tend)
-    ax1.plot(PPP,y_Real[0,:],'-b')
-    ax1.plot(PPP,y_Real[1,:],'-r')
-    ax1.plot(PPP,U[0,:],'-k')
-    ax1.plot(PPP,U[1,:],'-g')
-    plt.show()
+    # fig, ax1 = plt.subplots()
+    # PPP=np.arange(0,tend)
+    # ax1.plot(PPP,y_Real[0,:],'-b')
+    # ax1.plot(PPP,y_Real[1,:],'-r')
+    # ax1.plot(PPP,U[0,:],'-k')
+    # ax1.plot(PPP,U[1,:],'-g')
+    # plt.show()
 
 
 

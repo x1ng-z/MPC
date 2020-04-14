@@ -223,13 +223,13 @@ for loop_outi in range(p):
         A_N[A_time_series.shape[2] * loop_outi:A_time_series.shape[2] * (loop_outi + 1), loop_ini]= A_time_series[loop_outi, loop_ini, :]
 
 '''前馈响应矩阵赋值'''
-B_time_series=A_N*0.1
+B_time_series=A_N*-0.01
 
 print(A_time_series.shape[2])
 dmc=DynamicMatrixControl.DMC(A_time_series,R_t, Q, M, P, m, p)
 results=dmc.compute()
 
-minJ=QP.MinJ(0,0,0,results['A'],Q,R_t,balance,M,P,m,p,Umin,Umax,Ymin,Ymax)
+minJ=QP.MinJ(0,0,0,results['A'],Q,R_t,M,P,m,p,Umin,Umax,Ymin,Ymax)
 
 for time_devi in range(tend-1):
     '''这里先开始输出原先的输出值U,deltaU=0 U(k)=U(k-1)+deltaU'''
@@ -253,7 +253,7 @@ for time_devi in range(tend-1):
 
 
     '''检查增量下界上界'''
-    if((Umin<=willUM).all() and (Umax>=willUM).all() and np.std(willUM)<0.01):
+    if((Umin<=willUM).all() and (Umax>=willUM).all() and   False and np.std(willUM)<0.01):
         print("good U limit")
         willYP = np.dot(results['A'], deltaU[:, time_devi].reshape(m * M, 1))+y_0P[:,time_devi]
         if ((Ymin <= willYP).all() and (willYP <= Ymax).all()):
@@ -274,8 +274,8 @@ for time_devi in range(tend-1):
         minJ.setwp(W_i.transpose())
         minJ.sety0(y_0P[:,time_devi])
 
-        aaaa=minJ.comput()
-        deltaU[:, time_devi]=aaaa
+        res=minJ.comput()
+        deltaU[:, time_devi]=res.x
         #print(aaaa)
 
     '''得到m个输入的本次作用增量'''
