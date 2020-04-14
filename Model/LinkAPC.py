@@ -270,14 +270,16 @@ if __name__ == '__main__':
         '''新增加死区时间和漏斗初始值'''
         linesUpAndDown=tools.buildFunel(np.array(opcModleData['wi']), np.array(opcModleData['deadZones']), np.array(opcModleData['funelInitValues']), N, p)
         if DEBUG:
-            fig, ax1 = plt.subplots()
-            PPP=np.arange(0,N)
-            ax1.plot(PPP,linesUpAndDown[0,:],'-r')
-            ax1.plot(PPP,linesUpAndDown[1,:],'-k')
-            ax1.plot(PPP,y_0N,'-g')
+            # fig, ax1 = plt.subplots()
+            # PPP=np.arange(0,N)
+            # ax1.plot(PPP,linesUpAndDown[0,:],'-r')
+            # ax1.plot(PPP,linesUpAndDown[1,:],'-k')
+            # ax1.plot(PPP,y_0N,'-g')
+            pass
 
         if((linesUpAndDown[0,:]>=y_0N).all() and (linesUpAndDown[1,:]<=y_0N).all()):
-            print("进行更新")
+            if DEBUG:
+                print("不进行更新")
             pass
         else:
             '''得到m个输入的本次作用增量'''
