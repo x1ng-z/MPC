@@ -212,7 +212,7 @@ if __name__ == '__main__':
                 isfirst=False
             else:
                 thisTimeFF = np.array(opcModleData["FF"])
-                y_0N = tools.buildY0(p, N, y_0N) + np.dot(B_time_series,((thisTimeFF-lastTimeFF)*(np.array(opcModleData["FFLmt"]))).transpose()).reshape(1,-1).T
+                y_0N = y_0N + np.dot(B_time_series,((thisTimeFF-lastTimeFF)*(np.array(opcModleData["FFLmt"]))).transpose()).reshape(1,-1).T
                 if DEBUG:
                     print("B")
                     #print(np.dot(B_time_series, (thisTimeFF-lastTimeFF).transpose()).reshape(1, -1).T)
@@ -268,7 +268,7 @@ if __name__ == '__main__':
         U[:,0]=U[:,0]+thisTimedelU.transpose()
 
         '''新增加死区时间和漏斗初始值'''
-        linesUpAndDown=tools.buildFunel(W_i, np.array(opcModleData['deadZones']), np.array(opcModleData['funelInitValues']), N, p)
+        linesUpAndDown=tools.buildFunel(np.array(opcModleData['wi']), np.array(opcModleData['deadZones']), np.array(opcModleData['funelInitValues']), N, p)
         if DEBUG:
             fig, ax1 = plt.subplots()
             PPP=np.arange(0,N)
