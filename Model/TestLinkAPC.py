@@ -8,6 +8,13 @@ import requests
 import json
 import time
 
+
+
+
+
+
+
+
 if __name__ == '__main__':
     DEBUG=True
     for i in range(1, len(sys.argv)):
@@ -294,6 +301,7 @@ if __name__ == '__main__':
             U[:, 0] = U[:, 0] + thisTimedelU.transpose()
             if DEBUG:
                 print("u", U[:, 0])
+                print("unhandle",np.dot(L, deltaU[:, 0]))
                 print("deltau", thisTimedelU.transpose())
 
 
@@ -334,7 +342,7 @@ if __name__ == '__main__':
         payload = {'id': modleId
                     , 'data': json.dumps(
                                             {'mv': U[:, 0].tolist()
-                                                , 'dmv': thisTimedelU.reshape(-1).tolist()
+                                                , 'dmv': np.dot(L, deltaU[:, 0]).reshape(-1).tolist()
                                                 , 'e': e.tolist()
                                                 , 'predict': y_predictionN.tolist()
                                                 ,'funelupAnddown': linesUpAndDown.tolist()

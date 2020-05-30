@@ -1,0 +1,360 @@
+import numpy as np
+import DynamicMatrixControl
+import QP
+import Help
+
+
+class apc:
+
+    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri):
+        '''
+                    function:
+                        预测控制
+                    Args:
+                           :arg P 预测时域长度
+                           :arg p PV数量
+                           :arg M mv计算后续输出几步
+                           :arg m mv数量
+                           :arg N 阶跃响应序列个数
+                           :arg outStep 输出间隔
+                           :arg feedforwardNum 前馈数量
+                           :arg A mv对pv的阶跃响应
+                           :arg B ff对pv的阶跃响应
+                           :arg qi 优化控制域矩阵，用于调整sp与预测的差值，在滚动优化部分
+                           :arg ri 优化时间域矩阵,用于约束调整dmv的大小，在滚动优化部分
+
+                    Returns:
+                        A dict mapping keys to the corresponding table row data
+                        fetched. Each row is represented as a tuple of strings. For
+                        example:
+
+                        {'Serak': ('Rigel VII', 'Preparer'),
+                         'Zim': ('Irk', 'Invader'),
+                         'Lrrr': ('Omicron Persei 8', 'Emperor')}
+
+                        If a key from the keys argument is missing from the dictionary,
+                        then that row was not found in the table.
+
+                    Raises:
+                        IOError: An error occurred accessing the bigtable.Table object.
+                    '''
+
+        '''预测时域长度'''
+        self.P = P  # 100#200 date 3/25
+
+        '''输出个数'''
+        self.p = p
+
+        '''控制时域长度'''
+        self.M = M
+
+        '''输入个数'''
+        self.m = m
+
+        '''建模时域'''
+        self.N = N
+
+        '''输出间隔'''
+        self.outStep = outStep
+
+        '''前馈数量'''
+        self.feedforwardNum = feedforwardNum
+
+        '''mv 对 pv 的阶跃响应'''
+        self.A_step_response_sequence = np.zeros((p * N, m))
+        for loop_outi in range(p):
+            for loop_ini in range(m):
+                self.A_step_response_sequence[N * loop_outi:N * (loop_outi + 1), loop_ini] = A[loop_outi, loop_ini, :]
+
+        '''ff 对 pv 的阶跃响应'''
+        self.B_step_response_sequence = []
+
+        '''前馈数量为0 则不需要初始化前馈响应B_step_response_sequence'''
+        if feedforwardNum != 0:
+            self.B_step_response_sequence = np.zeros((p * N, feedforwardNum))
+            for outi in range(p):
+                for ini in range(feedforwardNum):
+                    self.B_step_response_sequence[outi * N:(outi + 1) * N, ini] = B[outi, ini]
+
+        '''控制优化区域Q矩阵 shape=(p*P,p*P),是一个对角矩阵diag'''
+        self.Q = np.eye(p * P)
+        for indexp in range(p):
+            self.Q[P * indexp:P * (indexp + 1), :] = qi[indexp] * self.Q[P * indexp:P * (indexp + 1), :]
+
+        '''得到R矩阵 优化时间区域 shape=(m*M,m*M),是一个diag对角矩阵'''
+        self.R = np.eye((M * m))
+        for indexm in range(m):
+            self.R[M * indexm:M * (indexm + 1), :] = ri[indexm] * self.R[M * indexm:M * (indexm + 1), :]
+
+        '''H Matrix反馈矫正系数矩阵
+        '''
+        self.H = np.zeros((p * N, p))  # [输出引脚*阶跃时序长度，输出引脚]
+
+        '''build矫正 H matrix'''
+        for indexp in range(p):
+            for indexn in range(N):
+                self.H[indexn + N * indexp, indexp] = 1  # hi[loop_outi]
+
+        '''位移矩阵'''
+        self.S = np.zeros((p * N, p * N))  # [输出引脚*阶跃时序长度，输出引脚*阶跃时序长度]
+
+        '''构造计算位移矩阵S'''
+        for loop_outi in range(p):
+            for loop_stepi in range(0, N - 1):
+                self.S[loop_outi * N + loop_stepi, loop_outi * N + loop_stepi + 1] = 1
+            self.S[loop_outi * N + N - 1, loop_outi * N + N - 1] = 1
+
+        '''算法运行时间'''
+        self.costtime = 0
+
+        '''运行key值'''
+        self.key = 0
+
+        self.solver_dmc = DynamicMatrixControl.DMC(A, self.R, self.Q, self.M, self.P, self.m, self.p)
+        self.control_vector, self.dynamic_matrix = self.solver_dmc.compute()
+
+        self.solver_qp = QP.MinJ(0, 0, 0, A, self.Q, self.R, self.M, self.P, self.m, self.p, 0, 0, 0, 0)
+
+        self.help = Help.Tools()
+
+        pass
+
+    def predictive_control(self,y0,dmv):
+        '''
+            function:
+                预测控制
+            Args:
+                :arg dmv mv增量shape(m,1)
+                :arg y0 pv预测值shape(p*P,1)
+
+            Returns:
+                返回再作用
+            '''
+        return np.dot(self.A_step_response_sequence,dmv)+y0
+
+    def rolling_optimization(self, wp, y0, mv, limitmv, limitdmv):
+        '''
+               function:
+                    滚动优化
+
+               Args:
+                    :arg wp sp设定值shape(m,1)
+                    :arg y0 对pv预测值(p*N,1)
+                    :arg mv 当前的mv数值shape(m,1)
+                    :arg dmv 求解器求出来的mv增量shape(m*M,1)
+                    :arg limitmv shape=(m,2)[ [m1_min,m1.max],
+                                              [m2.min,m2.max],
+                                              .......
+                                            ]
+
+                    :arg limitdmv shape(m,2)数据排布形式如limitmv
+
+               Returns:
+                   A dict mapping keys to the corresponding table row data
+                   fetched. Each row is represented as a tuple of strings. For
+                   example:
+
+                   {'Serak': ('Rigel VII', 'Preparer'),
+                    'Zim': ('Irk', 'Invader'),
+                    'Lrrr': ('Omicron Persei 8', 'Emperor')}
+
+                   If a key from the keys argument is missing from the dictionary,
+                   then that row was not found in the table.
+               '''
+
+        '''将sp值向量构建为shape=(p*P,1)'''
+        WP = self.help.biuldWi(self.p, self.P, wp)
+        '''提取每个pv的前P个预测值'''
+        y_0P = np.zeros((self.p * self.P, 1))
+        for indexp in range(self.p):
+            y_0P[indexp * self.P:(indexp + 1) * self.P, 0] = y0[indexp * self.N:(indexp) * self.N + self.P, 0]
+
+        deltay = np.zeros((self.p * self.P, 1))
+        deltay[:, 0] = WP.transpose() - y_0P[:, 0]
+
+        '''
+        1、先用动态矩阵求解器求解
+        1.1、动态矩阵求解后，检查数据是否超过限制
+        1.2检查是否超过限制：mv上下限、dmv上下限
+        1.3如果超过则采用QP求解器进行求解
+        2、求解器求解完成后，对dmv进行检查是否有超过限制        
+        '''
+
+        '''计算得到m个输入的M个连续的输出的deltaU'''
+        dmv = np.zeros((self.m * self.M, 1))
+        dmv[:, 0] = np.dot(self.control_vector, deltay[:, 0])
+
+        isinlimit, mvmin, mvmax, dmvmin, dmvmax = self.checklimit(mv, dmv, limitmv, limitdmv)
+        if (isinlimit):
+            '''dmc求解器成功'''
+            self.costtime = 0.1
+            pass
+
+        else:
+            '''qp求解器开始运行'''
+            self.solver_qp.setu0(self.tools.buildU(mv[:, 0], self.m, self.M))
+            self.solver_qp.setwp(WP.transpose())
+            self.solver_qp.sety0(y_0P[:, 0])
+            self.solver_qp.setUmin(mvmin)
+            self.solver_qp.setUmax(mvmax)
+            self.solver_qp.setDumin(dmvmin)  # 最小值先不用,在qp求解中，使用-1*dmvmax作为最大减动幅度,最小值仅在输出时，如果abs(dmv)<dmvmin就将其累加到mv上
+            self.solver_qp.setDumax(dmvmax)
+            res = self.solver_qp.comput()
+            dmv[:, 0] = res.x
+            self.costtime = res.execution_time
+            pass
+
+        comstraindmv = self.mvconstraint(mv, dmv, limitmv, limitdmv)
+
+        return comstraindmv
+
+    def feedback_correction(self, yreal, y0, lastmvfb, thistimemvfb,lastfffb,thistimefffb,ffdependregion):
+        '''
+                   function:
+                        反馈矫正
+
+                   Args:
+                       :arg lastmvfb 上一次mv的反馈值shape(m,1)
+                       :arg thistimemvfb 本次mv的反馈值shape(m,1)
+                       :arg y0 pv预测初始化值
+                       :arg yreal pv的实际值
+                       :arg lastfffb 上一次前馈ff值
+                       :arg thistimefffb 本次前馈反馈值
+                       :arg ffdependregion 前馈ff是否在上下限内
+
+                   Returns:
+                       A dict mapping keys to the corresponding table row data
+                       fetched. Each row is represented as a tuple of strings. For
+                       example:
+
+                       {'Serak': ('Rigel VII', 'Preparer'),
+                        'Zim': ('Irk', 'Invader'),
+                        'Lrrr': ('Omicron Persei 8', 'Emperor')}
+
+                       If a key from the keys argument is missing from the dictionary,
+                       then that row was not found in the table.
+                   '''
+
+        '''作用完成后，做预测数据计算'''
+        deltay = np.dot(self.A_step_response_sequence, (thistimemvfb - lastmvfb).transpose())
+        '''根据反馈计算出上一次mv作用后的预测曲线'''
+        y_predictionN = y0[:, 0] + deltay
+        '''等待到下一次将要输出时候，获取实际值，并与预测值的差距'''
+        '''K矩阵 只取本次预测值'''
+        K = np.zeros((self.p, self.p * self.N))
+        for indexp in range(self.p):
+            K[indexp, indexp * self.N] = 1
+
+        frist_y_predictionN = np.dot(K, y_predictionN)  # 提取上一个作用deltau后，第一个预测值
+        # yreal[:, 0] = np.array(opcModleData['y0'])  # firstNodePredict.transpose()
+        e = yreal[:, 0] - frist_y_predictionN
+
+        y_Ncor = np.zeros((self.p * self.N, 1))
+        y_Ncor[:, 0] = y_predictionN + np.dot(self.H, e.transpose())
+
+        y_0N = np.zeros((self.p * self.N, 1))
+        y_0N[:, 0] = np.dot(self.S, y_Ncor[:, 0])
+
+        if self.feedforwardNum!=0:
+            y_0N[:, 0]=y_0N[:, 0]+np.dot(self.B_step_response_sequence,((thistimefffb-lastfffb)*ffdependregion).transpose()).reshape(1,-1).T
+
+        return e, y_0N
+
+    def mvconstraint(self, mv, dmv, limitmv, limitdmv):
+        '''
+                      function:
+                           检查是否有超过限制
+                           1、mv上下限
+                           2、dmv上下限 其中dmv下限暂时先用-1*dmvmax代替，dmvmin只是作为当dmv绝对值小于他时不进行累加到mv上，放弃本次调节
+
+                      Args:
+                          :arg mv 当前的mv数值shape(m,1)
+                          :arg dmv 求解器求出来的mv增量shape(m*M,1)
+                          :arg limitmv shape=(m,2)[ [m1_min,m1.max],
+                                                    [m2.min,m2.max],
+                                                    .......
+                                                  ]
+
+                          :arg limitdmv shape(m,2)数据排布形式如limitmv
+                      Returns:
+                          True mv 加上增量后还在mv上下限范围内 and dmv也在该范围内
+                          False 上述条件不满足
+                      '''
+        '''dmv累加矩阵'''
+
+        '''L矩阵 只取即时控制增量'''
+        L = np.zeros((self.m, self.M * self.m))
+        for indexm in range(self.m):
+            L[indexm, indexm * self.M] = 1
+
+        '''本次要输出的dmv'''
+        firstonedmv = np.dot(L, dmv)
+        for index, needcheckdmv in np.ndenumerate(firstonedmv):
+            '''检查下dmv是否在限制之内'''
+            if (np.abs(needcheckdmv) > limitdmv[index, 1]):
+                firstonedmv[index] = limitdmv[index, 1] if (firstonedmv[index] > 0) else (-1 * limitdmv[index, 1])
+            '''dmv是否小于最小调节量，如果小于，则不进行调节'''
+            if(np.abs(needcheckdmv)<=limitdmv[index, 0]):
+                firstonedmv[index]=0
+            '''nv叠加dmv完成以后是否大于mvmax'''
+            if ((mv[index] + firstonedmv[index]) >= limitmv[index, 1]):
+                firstonedmv[index] = limitmv[index, 1] - mv[index]
+            '''nv叠加dmv完成以后是否大于mvmax'''
+            if ((mv[index] + firstonedmv[index]) <= limitmv[index, 0]):
+                firstonedmv[index] = limitmv[index, 0] - mv[index]
+
+        return dmv
+
+    def checklimit(self, mv, dmv, limitmv, limitdmv):
+        '''
+                      function:
+                           检查是否有超过限制
+                           1、mv上下限
+                           2、dmv上下限 其中dmv下限暂时先用-1*dmvmax代替，dmvmin只是作为当dmv绝对值小于他时不进行累加到mv上，放弃本次调节
+
+                      Args:
+                          :arg mv 当前的mv数值shape(m,1)
+                          :arg dmv 求解器求出来的mv增量shape(m*M,1)
+                          :arg limitmv shape=(m,2)[ [m1_min,m1.max],
+                                                    [m2.min,m2.max],
+                                                    .......
+                                                  ]
+
+                          :arg limitdmv shape(m,2)数据排布形式如limitmv
+                      Returns:
+                          True mv 加上增量后还在mv上下限范围内 and dmv也在该范围内
+                          False 上述条件不满足
+                      '''
+        '''dmv累加矩阵'''
+        coe_accumdmv = np.zeros((self.m * self.M, self.m * self.M))
+        for indexm in range(self.m):
+            for noderow in range(self.M):
+                for nodecol in range(self.M):
+                    if (nodecol <= noderow):
+                        coe_accumdmv[indexm * self.M + noderow, indexm * self.M + nodecol] = 1
+
+        accumdmv = np.dot(coe_accumdmv, dmv[:, 0].reshape(self.m * self.M, 1))
+
+        '''叠加了增量后的mv'''
+        accummv = self.tools.buildU(mv, self.m, self.M) + accumdmv
+
+        '''分解为mvmin和mvmax'''
+        mvmin = np.zeros((self.m * self.M, 1))
+        mvmax = np.zeros((self.m * self.M, 1))
+
+        dmvmin = np.zeros((self.m * self.M, 1))
+        dmvmax = np.zeros((self.m * self.M, 1))
+        for indexm in range(self.m):
+            for indexM in range(self.M):
+                mvmin[indexm * self.M + indexM, 0] = limitmv[indexm, 0]
+                mvmax[indexm * self.M + indexM, 0] = limitmv[indexm, 1]
+
+                dmvmin[indexm * self.M + indexM, 0] = limitdmv[indexm, 0]
+                dmvmax[indexm * self.M + indexM, 0] = limitdmv[indexm, 1]
+
+        '''检查增量下界上界'''
+        '''检查mv上下限'''
+        if (((mvmin) <= accummv).all() and (mvmax >= accummv).all() and (np.abs(dmv) <= dmvmax).all()):
+            return True, mvmin, mvmax, dmvmin, dmvmax
+        else:
+            return False, mvmin, mvmax, dmvmin, dmvmax

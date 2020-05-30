@@ -19,11 +19,6 @@ if __name__ == '__main__':
     modleId=int(sys.argv[2])
     resp=requests.get(url)#sys.argv[0]'http://localhost:8080/python/modleparam/1.do'
     modle=json.loads(resp.text)
-    #mvtime=np.array(modle["mv"])
-    # x0 = np.array([1.3, 0.7, 0.8, 1.9, 1.2])
-    # ap=x0[:-1]
-    # a=np.eye(4)
-    # print(a[0:2,:])
 
     '''预测时域长度'''
     P=modle["P"]#100#200 date 3/25
@@ -102,7 +97,7 @@ if __name__ == '__main__':
         Q[P*loop_ini:P*(loop_ini+1),:]= qi[loop_ini] * Q[P * loop_ini:P * (loop_ini + 1), :]
 
     '''构建目标矩阵矩阵'''
-    W_i=0
+    W_i = np.zeros((m, 1))
 
 
     '''预测值'''
@@ -175,9 +170,6 @@ if __name__ == '__main__':
         # testwi=np.array(opcModleData['wi'])
 
         W_i=tools.biuldWi(p,P,np.array(opcModleData['wi']))#np.array([800])
-
-
-
 
         '''限制输入  Umin<U<Umax'''
         limitU =np.array(opcModleData["limitU"]) #np.array(opcModleData["limitU"])#np.array([[0, 100], [0, 100]])
@@ -272,7 +264,7 @@ if __name__ == '__main__':
         # thisTimedelU=np.dot(L, deltaU[:,0])
         # '''加上本次增量的系统输入'''
         # U[:,0]=U[:,0]+thisTimedelU.transpose()
-
+        thisTimedelU=np.zeros((m,1))
         '''新增加死区时间和漏斗初始值'''
         linesUpAndDown=tools.buildFunel(np.array(opcModleData['wi']), np.array(opcModleData['deadZones']), np.array(opcModleData['funelInitValues']), N, p)
         if DEBUG:
@@ -281,6 +273,7 @@ if __name__ == '__main__':
             # ax1.plot(PPP,linesUpAndDown[0,:],'-r')
             # ax1.plot(PPP,linesUpAndDown[1,:],'-k')
             # ax1.plot(PPP,y_0N,'-g')
+
             pass
 
         if((linesUpAndDown[0,:]>=y_0N).all() and (linesUpAndDown[1,:]<=y_0N).all()):
@@ -290,6 +283,9 @@ if __name__ == '__main__':
         else:
             '''得到m个输入的本次作用增量'''
             thisTimedelU = np.dot(L, deltaU[:, 0])
+            for index, needcheckdmv in np.ndenumerate(thisTimedelU):
+                if (np.abs(needcheckdmv) > 0.2):
+                    thisTimedelU[index] = 0.2 if (thisTimedelU[index] > 0) else -0.2
             '''加上本次增量的系统输入'''
             U[:, 0] = U[:, 0] + thisTimedelU.transpose()
             if DEBUG:
@@ -332,8 +328,19 @@ if __name__ == '__main__':
         y_Ncor[:, 0] = y_predictionN + np.dot(H, e.transpose())
         y_0N[:, 0] = np.dot(S, y_Ncor[:, 0])
 
-
-
+        payload = {'id': modleId
+                    , 'data': json.dumps(
+                                            {'mv': U[:, 0].tolist()
+                                                , 'dmv': thisTimedelU.reshape(-1).tolist()
+                                                , 'e': e.tolist()
+                                                , 'predict': y_predictionN.tolist()
+                                                ,'funelupAnddown': linesUpAndDown.tolist()
+                                             }
+                                        )
+                   }
+        write_resp = requests.post("http://localhost:8080/python/updateModleData.do", data=payload)
+        if DEBUG:
+            print(write_resp.text)
     # fig, ax1 = plt.subplots()
     # PPP=np.arange(0,tend)
     # ax1.plot(PPP,y_Real[0,:],'-b')

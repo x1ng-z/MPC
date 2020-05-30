@@ -35,22 +35,23 @@ class Tools:
 
         return W_i
 
+    '''
+               function:
+                     构建漏斗
+               Args:
+                   :arg wp sp值
+                   :arg deadZones 死区
+                   :arg funelInitValues 漏斗初始值
+                   :arg N 阶跃响应数据点数量
+                   :arg p pv数量
+               Returns:
+                    返回的漏斗数据为shape为(2,p*N)
+                   funels=[ up1  up2..upN  pv的高限制都在这一行
+                   donw1 donw2...donwN   pv的低限制都在这一行 ]
+    '''
     def buildFunel(self, wp, deadZones, funelInitValues, N, p):
-        '''
 
-
-        :param wp:
-        :param deadZones:
-        :param funelInitValues:
-        :param N:
-        :param p:
-        :return:
-
-
-        funels=[ up1  up2..upN  pv的高限制都在这一行
-                donw1 donw2...donwN   pv的低限制都在这一行 ]
-        '''
-        funels = np.zeros((2,p*N))
+        funels = np.zeros((2, p * N))
         leftUpPointsY = wp + deadZones + funelInitValues
         leftDownPointsY = wp - deadZones - funelInitValues
         rightUpProintsY = wp + deadZones
@@ -68,7 +69,5 @@ class Tools:
                     Upbi = leftDownPointsY[pvi]
 
                 for lineLimti in range(N):
-                    funels[lineNum, pvi*N+lineLimti] = Upki * lineLimti + Upbi
-
-
+                    funels[lineNum, pvi * N + lineLimti] = Upki * lineLimti + Upbi
         return funels

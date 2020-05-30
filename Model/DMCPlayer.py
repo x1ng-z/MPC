@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import DynamicMatrixControl
 import Help
 import QP
-
-
+import time
+start=time.time()
 x0 = np.array([1.3, 0.7, 0.8, 1.9, 1.2])
 ap=x0[:-1]
 a=np.eye(4)
@@ -227,9 +227,9 @@ B_time_series=A_N*-0.01
 
 print(A_time_series.shape[2])
 dmc=DynamicMatrixControl.DMC(A_time_series,R_t, Q, M, P, m, p)
-results=dmc.compute()
+control_vector, dynamic_matrix=dmc.compute()
 
-minJ=QP.MinJ(0,0,0,results['A'],Q,R_t,M,P,m,p,Umin,Umax,Ymin,Ymax)
+minJ=QP.MinJ(0,0,0,dynamic_matrix,Q,R_t,M,P,m,p,Umin,Umax,Ymin,Ymax)
 
 for time_devi in range(tend-1):
     '''这里先开始输出原先的输出值U,deltaU=0 U(k)=U(k-1)+deltaU'''
@@ -245,7 +245,7 @@ for time_devi in range(tend-1):
     deltaD[:, time_devi] = W_i.transpose() - y_0P[:, time_devi]
 
     '''计算得到m个输入的M个连续的输出的deltaU'''
-    deltaU[:, time_devi] = np.dot(results['deltau'], deltaD[:, time_devi])
+    deltaU[:, time_devi] = np.dot(control_vector, deltaD[:, time_devi])
     '''校验输入值是否超过限制'''
     B_Matrix = np.zeros((m * M, m * M))
     for indexIn in range(m):
@@ -261,7 +261,7 @@ for time_devi in range(tend-1):
     '''检查增量下界上界'''
     if((Umin<=willUM).all() and (Umax>=willUM).all() and   False and np.std(willUM)<0.01):
         print("good U limit")
-        willYP = np.dot(results['A'], deltaU[:, time_devi].reshape(m * M, 1))+y_0P[:,time_devi]
+        willYP = np.dot(dynamic_matrix, deltaU[:, time_devi].reshape(m * M, 1))+y_0P[:,time_devi]
         if ((Ymin <= willYP).all() and (willYP <= Ymax).all()):
             print("good Y limit")
             pass
@@ -330,6 +330,9 @@ ax1.plot(PPP,y_Real[1,:],'-r')
 ax1.plot(PPP,U[0,:],'-k')
 ax1.plot(PPP,U[1,:],'-g')
 plt.show()
+
+end=time.time()
+print("cost",end-start)
 
 
 
