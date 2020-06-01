@@ -20,7 +20,7 @@ if __name__ == '__main__':
     modle=json.loads(resp.text)
 
     tools=Help.Tools()
-    MPC=apc.apc(modle["P"], modle["p"], modle["M"], modle["m"], modle["N"], modle["APCOutCycle"], modle["fnum"],np.array(modle["A"]),( np.array(modle["B"]) if("B" in modle) else []),np.array(modle["Q"]),np.array(modle["R"]))
+    MPC=apc.apc(modle["P"], modle["p"], modle["M"], modle["m"], modle["N"], modle["APCOutCycle"], modle["fnum"],np.array(modle["A"]),( np.array(modle["B"]) if("B" in modle) else []),np.array(modle["Q"]),np.array(modle["R"]),np.array([modle['pvusemv']]))
     isEnable=modle["enable"]
     resp_opc = requests.get("http://192.168.165.187:8080/AILab/python/opcread/%d.do" % modleId)
     modle_init_data = json.loads(resp_opc.text)
@@ -30,11 +30,11 @@ if __name__ == '__main__':
             y0[indexp * MPC.N + indexn, 0] = np.array(modle_init_data['y0'])[indexp]
 
     limitmv=np.array(modle_init_data['limitU'])
-    limitdmv=np.array([[0.1,0.2]])#TODO
+    limitdmv=np.array([[0.1,0.2],[0.1,0.2]])#TODO
     mv=np.array(modle_init_data['U'])
     mvfb=np.array(modle_init_data['UFB'])
-    ff=np.array(modle_init_data['FF']) if ('FF' in modle_init_data) else 0#前馈值
-    ffdependregion=np.array(modle_init_data['FFLmt']) if ('FFLmt' in modle_init_data) else 0 #前馈置信区间，不在这个区间内的ff,不可以用
+    ff=np.array(modle_init_data['FF']) if ('FF' in modle_init_data) else []#前馈值
+    ffdependregion=np.array(modle_init_data['FFLmt']) if ('FFLmt' in modle_init_data) else [] #前馈置信区间，不在这个区间内的ff,不可以用
     wp = np.array(modle_init_data['wi'])
     deadZones=np.array(modle_init_data['deadZones'])
     funelInitValues=np.array(modle_init_data['funelInitValues'])
@@ -42,16 +42,18 @@ if __name__ == '__main__':
     isEnable = modle_init_data['enable']
     while(isEnable==0):
 
-        comstraindmv=MPC.rolling_optimization(wp,y0,mv,limitmv,limitdmv)
+        comstraindmv,firstmvs=MPC.rolling_optimization(wp,y0,mv,limitmv,limitdmv)
         predicty0=MPC.predictive_control(y0,comstraindmv)
         '''新增加死区时间和漏斗初始值'''
         writemv=[]
         linesUpAndDown=tools.buildFunel(wp, deadZones, funelInitValues, MPC.N, MPC.p)
-        if((linesUpAndDown[0,:]>=predicty0).all() and (linesUpAndDown[1,:]<=predicty0).all()):
-            writemv=mv
-            pass
-        else:
-            writemv = mv + comstraindmv.transpose()
+        for  indexp in MPC.p:
+
+            if((linesUpAndDown[0,indexp*MPC.N:(indexp+1)*MPC.N]>=predicty0[indexp*MPC.N:(indexp+1)*MPC.N,0]).all() and (linesUpAndDown[1,indexp*MPC.N:(indexp+1)*MPC.N]<=predicty0).all()):
+                writemv=mv
+                pass
+            else:
+                writemv = mv + firstmvs.reshape(1,-1)
 
         payload = {'id': modleId, 'U':writemv}
         write_resp=requests.get("http://192.168.165.187:8080/AILab/python/opcwrite.do",params=payload)
@@ -65,29 +67,29 @@ if __name__ == '__main__':
         modle_real_data = json.loads(resp_opc.text)
         isEnable = modle_real_data["enable"]
 
-        e, y_0N=MPC.feedback_correction(np.array(modle_real_data['y0']),y0,mvfb,np.array(modle_real_data["UFB"]),ff,np.array(modle_real_data["FF"]),ffdependregion)
+        e, y_0N=MPC.feedback_correction(np.array(modle_real_data['y0']),y0,mvfb,np.array(modle_real_data["UFB"]),ff,(np.array(modle_real_data["FF"]) if ('FF' in modle_real_data) else []),(np.array(modle_real_data["FFLmt"]) if ('FFLmt' in modle_real_data) else []))
         y0=y_0N
 
 
 
         mv = np.array(modle_real_data['U'])#mv值
         mvfb = np.array(modle_real_data['UFB'])#mv反馈
-        ff = np.array(modle_real_data['FF']) if ('FF' in modle_real_data) else 0 # 前馈值
-        ffdependregion = np.array(modle_real_data['FFLmt']) if ('FFLmt' in modle_real_data) else 0 # 前馈置信区间，不在这个区间内的ff,不可以用
+        ff = np.array(modle_real_data['FF']) if ('FF' in modle_real_data) else [] # 前馈值
+        ffdependregion = np.array(modle_real_data['FFLmt']) if ('FFLmt' in modle_real_data) else [] # 前馈置信区间，不在这个区间内的ff,不可以用
         wp = np.array(modle_real_data['wi'])#sp值
 
 
         payload = {'id': modleId
                     , 'data': json.dumps(
-                                            {'mv': writemv.tolist()
-                                                , 'dmv': comstraindmv.reshape(-1).tolist()
-                                                , 'e': e.tolist()
-                                                , 'predict': y0.tolist()
+                                            {'mv': writemv.reshape(-1).tolist()
+                                                , 'dmv': firstmvs.reshape(-1).tolist()
+                                                , 'e': e.reshape(-1).tolist()
+                                                , 'predict': predicty0.reshape(-1).tolist()
                                                 ,'funelupAnddown': linesUpAndDown.tolist()
                                              }
                                         )
                    }
-        write_resp = requests.post("http://192.168.165.187:8080/python/updateModleData.do", data=payload)
+        write_resp = requests.post("http://192.168.165.187:8080/AILab/python/updateModleData.do", data=payload)
         if DEBUG:
             print(write_resp.text)
 

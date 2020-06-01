@@ -6,7 +6,7 @@ import Help
 
 class apc:
 
-    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri):
+    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri,,pvusemv):
         '''
                     function:
                         预测控制
@@ -44,6 +44,9 @@ class apc:
 
         '''前馈数量'''
         self.feedforwardNum = feedforwardNum
+
+        '''pv 使用mv的标记矩阵'''
+        self.pvusemv=pvusemv
 
         '''mv 对 pv 的阶跃响应'''
         self.A_step_response_sequence = np.zeros((p * N, m))
@@ -95,10 +98,10 @@ class apc:
         '''运行key值'''
         self.key = 0
 
-        self.solver_dmc = DynamicMatrixControl.DMC(A, self.R, self.Q, self.M, self.P, self.m, self.p)
-        self.control_vector, self.dynamic_matrix = self.solver_dmc.compute()
+        self.solver_dmc = DynamicMatrixControl.DMC(A, self.N,self.R, self.Q, self.M, self.P, self.m, self.p)
+        self.control_vector, self.dynamic_matrix_P,self.dynamic_matrix_N = self.solver_dmc.compute()
 
-        self.solver_qp = QP.MinJ(0, 0, 0, self.dynamic_matrix, self.Q, self.R, self.M, self.P, self.m, self.p, 0, 0, 0, 0)
+        self.solver_qp = QP.MinJ(0, 0, 0, self.dynamic_matrix_P, self.Q, self.R, self.M, self.P, self.m, self.p, 0, 0, 0, 0)
 
         self.help = Help.Tools()
 
@@ -115,7 +118,7 @@ class apc:
             Returns:
                 返回再作用
             '''
-        return np.dot(self.A_step_response_sequence, dmv) + y0
+        return np.dot(self.dynamic_matrix_N, dmv) + y0
 
     def rolling_optimization(self, wp, y0, mv, limitmv, limitdmv):
         '''
@@ -170,7 +173,7 @@ class apc:
 
         else:
             '''qp求解器开始运行'''
-            self.solver_qp.setu0(self.help.buildU(mv[:, 0], self.m, self.M))
+            self.solver_qp.setu0(self.help.buildU(mv, self.m, self.M))
             self.solver_qp.setwp(WP.transpose())
             self.solver_qp.sety0(y_0P[:, 0])
             self.solver_qp.setUmin(mvmin)
@@ -182,9 +185,9 @@ class apc:
             self.costtime = res.execution_time
             pass
 
-        comstraindmv = self.mvconstraint(mv, dmv, limitmv, limitdmv)
+        comstraindmv,firstmv = self.mvconstraint(mv, dmv, limitmv, limitdmv)
 
-        return comstraindmv
+        return comstraindmv,firstmv
 
     def feedback_correction(self, yreal, y0, lastmvfb, thistimemvfb, lastfffb, thistimefffb, ffdependregion):
         '''
@@ -214,9 +217,9 @@ class apc:
                    '''
 
         '''作用完成后，做预测数据计算'''
-        deltay = np.dot(self.A_step_response_sequence, (thistimemvfb - lastmvfb).transpose())
+        deltay = np.dot(self.A_step_response_sequence, (thistimemvfb - lastmvfb).reshape(-1,1))
         '''根据反馈计算出上一次mv作用后的预测曲线'''
-        y_predictionN = y0[:, 0] + deltay
+        y_predictionN = y0 + deltay.reshape(self.p*self.N,1)
         '''等待到下一次将要输出时候，获取实际值，并与预测值的差距'''
         '''K矩阵 只取本次预测值'''
         K = np.zeros((self.p, self.p * self.N))
@@ -225,17 +228,19 @@ class apc:
 
         frist_y_predictionN = np.dot(K, y_predictionN)  # 提取上一个作用deltau后，第一个预测值
         # yreal[:, 0] = np.array(opcModleData['y0'])  # firstNodePredict.transpose()
-        e = yreal[:, 0] - frist_y_predictionN
+        y_Real = np.zeros((self.p, 1))
+        y_Real[:,0]=yreal
+        e = y_Real - frist_y_predictionN
 
         y_Ncor = np.zeros((self.p * self.N, 1))
-        y_Ncor[:, 0] = y_predictionN + np.dot(self.H, e.transpose())
+        y_Ncor = y_predictionN + np.dot(self.H, e)
 
         y_0N = np.zeros((self.p * self.N, 1))
-        y_0N[:, 0] = np.dot(self.S, y_Ncor[:, 0])
+        y_0N = np.dot(self.S, y_Ncor)
 
         if self.feedforwardNum != 0:
-            y_0N[:, 0] = y_0N[:, 0] + np.dot(self.B_step_response_sequence,
-                                             ((thistimefffb - lastfffb) * ffdependregion).transpose()).reshape(1, -1).T
+            y_0N = y_0N + np.dot(self.B_step_response_sequence,
+                                             ((thistimefffb - lastfffb) * ffdependregion).reshape(-1,1))
 
         return e, y_0N
 
@@ -270,19 +275,19 @@ class apc:
         firstonedmv = np.dot(L, dmv)
         for index, needcheckdmv in np.ndenumerate(firstonedmv):
             '''检查下dmv是否在限制之内'''
-            if ((np.abs(needcheckdmv) > limitdmv[index[0], 1]).all()):
-                firstonedmv[index[0]] = limitdmv[index[0], 1] if (firstonedmv[index[0]] > 0) else (-1 * limitdmv[index[0], 1])
+            if (np.abs(needcheckdmv) > limitdmv[index[0], 1]):
+                firstonedmv[index[0],0] = limitdmv[index[0], 1] if (firstonedmv[index[0]] > 0) else (-1 * limitdmv[index[0], 1])
             '''dmv是否小于最小调节量，如果小于，则不进行调节'''
             if (np.abs(needcheckdmv) <= limitdmv[index[0], 0]):
-                firstonedmv[index[0]] = 0
+                firstonedmv[index[0],0] = 0
             '''nv叠加dmv完成以后是否大于mvmax'''
             if ((mv[index[0]] + firstonedmv[index[0]]) >= limitmv[index[0], 1]):
-                firstonedmv[index[0]] = limitmv[index[0], 1] - mv[index[0]]
+                firstonedmv[index[0],0] = limitmv[index[0], 1] - mv[index[0]]
             '''nv叠加dmv完成以后是否大于mvmax'''
             if ((mv[index[0]] + firstonedmv[index[0]]) <= limitmv[index[0], 0]):
-                firstonedmv[index[0]] = limitmv[index[0], 0] - mv[index[0]]
+                firstonedmv[index[0],0] = limitmv[index[0], 0] - mv[index[0]]
 
-        return dmv
+        return dmv,firstonedmv
 
     def checklimit(self, mv, dmv, limitmv, limitdmv):
         '''
@@ -292,7 +297,7 @@ class apc:
                            2、dmv上下限 其中dmv下限暂时先用-1*dmvmax代替，dmvmin只是作为当dmv绝对值小于他时不进行累加到mv上，放弃本次调节
 
                       Args:
-                          :arg mv 当前的mv数值shape(m,1)
+                          :arg mv 当前的mv数值shape(m)
                           :arg dmv 求解器求出来的mv增量shape(m*M,1)
                           :arg limitmv shape=(m,2)[ [m1_min,m1.max],
                                                     [m2.min,m2.max],
@@ -312,7 +317,7 @@ class apc:
                     if (nodecol <= noderow):
                         coe_accumdmv[indexm * self.M + noderow, indexm * self.M + nodecol] = 1
 
-        accumdmv = np.dot(coe_accumdmv, dmv[:, 0].reshape(self.m * self.M, 1))
+        accumdmv = np.dot(coe_accumdmv, dmv.reshape(self.m * self.M, 1))
 
         '''叠加了增量后的mv'''
         accummv = self.help.buildU(mv, self.m, self.M) + accumdmv
