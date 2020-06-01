@@ -170,7 +170,7 @@ class apc:
 
         else:
             '''qp求解器开始运行'''
-            self.solver_qp.setu0(self.tools.buildU(mv[:, 0], self.m, self.M))
+            self.solver_qp.setu0(self.help.buildU(mv[:, 0], self.m, self.M))
             self.solver_qp.setwp(WP.transpose())
             self.solver_qp.sety0(y_0P[:, 0])
             self.solver_qp.setUmin(mvmin)
@@ -270,17 +270,17 @@ class apc:
         firstonedmv = np.dot(L, dmv)
         for index, needcheckdmv in np.ndenumerate(firstonedmv):
             '''检查下dmv是否在限制之内'''
-            if (np.abs(needcheckdmv) > limitdmv[index, 1]):
-                firstonedmv[index] = limitdmv[index, 1] if (firstonedmv[index] > 0) else (-1 * limitdmv[index, 1])
+            if ((np.abs(needcheckdmv) > limitdmv[index[0], 1]).all()):
+                firstonedmv[index[0]] = limitdmv[index[0], 1] if (firstonedmv[index[0]] > 0) else (-1 * limitdmv[index[0], 1])
             '''dmv是否小于最小调节量，如果小于，则不进行调节'''
-            if (np.abs(needcheckdmv) <= limitdmv[index, 0]):
-                firstonedmv[index] = 0
+            if (np.abs(needcheckdmv) <= limitdmv[index[0], 0]):
+                firstonedmv[index[0]] = 0
             '''nv叠加dmv完成以后是否大于mvmax'''
-            if ((mv[index] + firstonedmv[index]) >= limitmv[index, 1]):
-                firstonedmv[index] = limitmv[index, 1] - mv[index]
+            if ((mv[index[0]] + firstonedmv[index[0]]) >= limitmv[index[0], 1]):
+                firstonedmv[index[0]] = limitmv[index[0], 1] - mv[index[0]]
             '''nv叠加dmv完成以后是否大于mvmax'''
-            if ((mv[index] + firstonedmv[index]) <= limitmv[index, 0]):
-                firstonedmv[index] = limitmv[index, 0] - mv[index]
+            if ((mv[index[0]] + firstonedmv[index[0]]) <= limitmv[index[0], 0]):
+                firstonedmv[index[0]] = limitmv[index[0], 0] - mv[index[0]]
 
         return dmv
 
@@ -315,7 +315,7 @@ class apc:
         accumdmv = np.dot(coe_accumdmv, dmv[:, 0].reshape(self.m * self.M, 1))
 
         '''叠加了增量后的mv'''
-        accummv = self.tools.buildU(mv, self.m, self.M) + accumdmv
+        accummv = self.help.buildU(mv, self.m, self.M) + accumdmv
 
         '''分解为mvmin和mvmax'''
         mvmin = np.zeros((self.m * self.M, 1))
