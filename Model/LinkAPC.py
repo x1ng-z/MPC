@@ -39,7 +39,7 @@ if __name__ == '__main__':
     outStep =modle["APCOutCycle"]
 
     '''前馈数量'''
-    feedforwardNum=modle["f"]
+    feedforwardNum=modle["fum"]
 
 
 

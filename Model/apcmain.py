@@ -47,14 +47,18 @@ if __name__ == '__main__':
         '''新增加死区时间和漏斗初始值'''
         writemv=[]
         linesUpAndDown=tools.buildFunel(wp, deadZones, funelInitValues, MPC.N, MPC.p)
-        for  indexp in MPC.p:
 
-            if((linesUpAndDown[0,indexp*MPC.N:(indexp+1)*MPC.N]>=predicty0[indexp*MPC.N:(indexp+1)*MPC.N,0]).all() and (linesUpAndDown[1,indexp*MPC.N:(indexp+1)*MPC.N]<=predicty0).all()):
-                writemv=mv
+        '''这里说明下，循环遍历每一个pv的漏斗
+        如果出现不符合的则需要更新对应影响他的mv
+        '''
+        updatemvmat=np.zeros((1,MPC.m))#需改更新的mv
+        for indexp in MPC.p:
+            if((linesUpAndDown[0,indexp*MPC.N:(indexp+1)*MPC.N]>=predicty0[indexp*MPC.N:(indexp+1)*MPC.N,0]).all() and (linesUpAndDown[1,indexp*MPC.N:(indexp+1)*MPC.N]<=predicty0[indexp*MPC.N:(indexp+1)*MPC.N,0]).all()):
                 pass
             else:
-                writemv = mv + firstmvs.reshape(1,-1)
-
+                updatemvmat = updatemvmat +MPC.pvusemv[indexp]
+        selectmvmat=updatemvmat>0#大于0说明PV不在漏斗内，需要更新
+        writemv = mv + firstmvs.reshape(1, -1)*selectmvmat.astype(int)
         payload = {'id': modleId, 'U':writemv}
         write_resp=requests.get("http://192.168.165.187:8080/AILab/python/opcwrite.do",params=payload)
         if DEBUG:

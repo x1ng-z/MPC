@@ -1,6 +1,16 @@
 import numpy as np
 import sys
 if __name__=='__main__':
+
+    kka=np.array([[1,2],[3,4]])
+    bkka=kka>1
+    intkka=kka*bkka.astype(int)
+    ikka=kka[0]
+    loop=np.array([[1],[2]]).reshape(1,-1)+np.array([1,2])
+
+    for index ,c in np.ndenumerate(loop):
+        print(index)
+
     d = {'1': 'one', '3': 'three', '2': 'two', '5': 'five', '4': 'four'}
     print("100" in d)
     dmvmin = np.zeros((2* 3, 1))
