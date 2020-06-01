@@ -65,8 +65,18 @@ if __name__ == '__main__':
         modle_real_data = json.loads(resp_opc.text)
         isEnable = modle_real_data["enable"]
 
-        e, y_0N=MPC.feedback_correction(np.array(modle_real_data['y0']),y0,mvfb,modle_real_data["UFB"],ff,modle_real_data["FF"],ffdependregion)
+        e, y_0N=MPC.feedback_correction(np.array(modle_real_data['y0']),y0,mvfb,np.array(modle_real_data["UFB"]),ff,np.array(modle_real_data["FF"]),ffdependregion)
         y0=y_0N
+
+
+
+        mv = np.array(modle_real_data['U'])#mv值
+        mvfb = np.array(modle_real_data['UFB'])#mv反馈
+        ff = np.array(modle_real_data['FF'])  # 前馈值
+        ffdependregion = np.array(modle_real_data['FFLmt'])  # 前馈置信区间，不在这个区间内的ff,不可以用
+        wp = np.array(modle_real_data['wi'])#sp值
+
+
         payload = {'id': modleId
                     , 'data': json.dumps(
                                             {'mv': writemv.tolist()

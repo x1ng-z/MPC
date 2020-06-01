@@ -22,25 +22,10 @@ class apc:
                            :arg B ff对pv的阶跃响应
                            :arg qi 优化控制域矩阵，用于调整sp与预测的差值，在滚动优化部分
                            :arg ri 优化时间域矩阵,用于约束调整dmv的大小，在滚动优化部分
-
-                    Returns:
-                        A dict mapping keys to the corresponding table row data
-                        fetched. Each row is represented as a tuple of strings. For
-                        example:
-
-                        {'Serak': ('Rigel VII', 'Preparer'),
-                         'Zim': ('Irk', 'Invader'),
-                         'Lrrr': ('Omicron Persei 8', 'Emperor')}
-
-                        If a key from the keys argument is missing from the dictionary,
-                        then that row was not found in the table.
-
-                    Raises:
-                        IOError: An error occurred accessing the bigtable.Table object.
                     '''
 
         '''预测时域长度'''
-        self.P = P  # 100#200 date 3/25
+        self.P = P
 
         '''输出个数'''
         self.p = p
@@ -113,13 +98,13 @@ class apc:
         self.solver_dmc = DynamicMatrixControl.DMC(A, self.R, self.Q, self.M, self.P, self.m, self.p)
         self.control_vector, self.dynamic_matrix = self.solver_dmc.compute()
 
-        self.solver_qp = QP.MinJ(0, 0, 0, A, self.Q, self.R, self.M, self.P, self.m, self.p, 0, 0, 0, 0)
+        self.solver_qp = QP.MinJ(0, 0, 0, self.dynamic_matrix, self.Q, self.R, self.M, self.P, self.m, self.p, 0, 0, 0, 0)
 
         self.help = Help.Tools()
 
         pass
 
-    def predictive_control(self,y0,dmv):
+    def predictive_control(self, y0, dmv):
         '''
             function:
                 预测控制
@@ -130,12 +115,14 @@ class apc:
             Returns:
                 返回再作用
             '''
-        return np.dot(self.A_step_response_sequence,dmv)+y0
+        return np.dot(self.A_step_response_sequence, dmv) + y0
 
     def rolling_optimization(self, wp, y0, mv, limitmv, limitdmv):
         '''
                function:
                     滚动优化
+                    求解出来的dmv是会检查是否在-1*dmvmax<=dmv<=dmvmax,同时如果dmv如果比dmvmin还小，那么dmv会被赋值为0
+                    也检查了mvmin<=mv+dmv<=mvmax
 
                Args:
                     :arg wp sp设定值shape(m,1)
@@ -150,16 +137,7 @@ class apc:
                     :arg limitdmv shape(m,2)数据排布形式如limitmv
 
                Returns:
-                   A dict mapping keys to the corresponding table row data
-                   fetched. Each row is represented as a tuple of strings. For
-                   example:
 
-                   {'Serak': ('Rigel VII', 'Preparer'),
-                    'Zim': ('Irk', 'Invader'),
-                    'Lrrr': ('Omicron Persei 8', 'Emperor')}
-
-                   If a key from the keys argument is missing from the dictionary,
-                   then that row was not found in the table.
                '''
 
         '''将sp值向量构建为shape=(p*P,1)'''
@@ -167,7 +145,7 @@ class apc:
         '''提取每个pv的前P个预测值'''
         y_0P = np.zeros((self.p * self.P, 1))
         for indexp in range(self.p):
-            y_0P[indexp * self.P:(indexp + 1) * self.P, 0] = y0[indexp * self.N:(indexp) * self.N + self.P, 0]
+            y_0P[indexp * self.P:(indexp + 1) * self.P, 0] = y0[indexp * self.N:indexp * self.N + self.P, 0]
 
         deltay = np.zeros((self.p * self.P, 1))
         deltay[:, 0] = WP.transpose() - y_0P[:, 0]
@@ -208,7 +186,7 @@ class apc:
 
         return comstraindmv
 
-    def feedback_correction(self, yreal, y0, lastmvfb, thistimemvfb,lastfffb,thistimefffb,ffdependregion):
+    def feedback_correction(self, yreal, y0, lastmvfb, thistimemvfb, lastfffb, thistimefffb, ffdependregion):
         '''
                    function:
                         反馈矫正
@@ -255,8 +233,9 @@ class apc:
         y_0N = np.zeros((self.p * self.N, 1))
         y_0N[:, 0] = np.dot(self.S, y_Ncor[:, 0])
 
-        if self.feedforwardNum!=0:
-            y_0N[:, 0]=y_0N[:, 0]+np.dot(self.B_step_response_sequence,((thistimefffb-lastfffb)*ffdependregion).transpose()).reshape(1,-1).T
+        if self.feedforwardNum != 0:
+            y_0N[:, 0] = y_0N[:, 0] + np.dot(self.B_step_response_sequence,
+                                             ((thistimefffb - lastfffb) * ffdependregion).transpose()).reshape(1, -1).T
 
         return e, y_0N
 
@@ -294,8 +273,8 @@ class apc:
             if (np.abs(needcheckdmv) > limitdmv[index, 1]):
                 firstonedmv[index] = limitdmv[index, 1] if (firstonedmv[index] > 0) else (-1 * limitdmv[index, 1])
             '''dmv是否小于最小调节量，如果小于，则不进行调节'''
-            if(np.abs(needcheckdmv)<=limitdmv[index, 0]):
-                firstonedmv[index]=0
+            if (np.abs(needcheckdmv) <= limitdmv[index, 0]):
+                firstonedmv[index] = 0
             '''nv叠加dmv完成以后是否大于mvmax'''
             if ((mv[index] + firstonedmv[index]) >= limitmv[index, 1]):
                 firstonedmv[index] = limitmv[index, 1] - mv[index]

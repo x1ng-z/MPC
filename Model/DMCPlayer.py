@@ -259,7 +259,7 @@ for time_devi in range(tend-1):
 
 
     '''检查增量下界上界'''
-    if((Umin<=willUM).all() and (Umax>=willUM).all() and   False and np.std(willUM)<0.01):
+    if((Umin<=willUM).all() and (Umax>=willUM).all() and   True or np.std(willUM)<0.01):
         print("good U limit")
         willYP = np.dot(dynamic_matrix, deltaU[:, time_devi].reshape(m * M, 1))+y_0P[:,time_devi]
         if ((Ymin <= willYP).all() and (willYP <= Ymax).all()):
@@ -277,6 +277,8 @@ for time_devi in range(tend-1):
     else:
         print("这里进行约束,因为U不满足")
         minJ.setu0(tools.buildU(U[:,time_devi],m,M))
+        minJ.setDumax(np.array([[0.01],[0.01],[0.01],[0.01],[0.01],[0.01],[0.01],[0.01],[0.01],[0.01],[0.01],[0.01]]))
+        minJ.setDumin(np.array([[0.001],[0.001],[0.001],[0.001],[0.001],[0.001],[0.001],[0.001],[0.001],[0.001],[0.001],[0.001]]))
         minJ.setwp(W_i.transpose())
         minJ.sety0(y_0P[:,time_devi])
 
