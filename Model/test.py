@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 if __name__=='__main__':
-
+    z=np.zeros(2)
     kka=np.array([[1,2],[3,4]])
     bkka=kka>1
     intkka=kka*bkka.astype(int)
