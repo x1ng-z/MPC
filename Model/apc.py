@@ -6,7 +6,7 @@ import Help
 
 class apc:
 
-    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri,,pvusemv):
+    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri,pvusemv):
         '''
                     function:
                         预测控制
