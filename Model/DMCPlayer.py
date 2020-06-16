@@ -36,9 +36,11 @@ feedforwardNum=2
 '''前馈的响应'''
 B_time_series=0
 '''前馈变动赋值'''
-delta_v=np.zeros((feedforwardNum,100))
-delta_v[0,:]=np.arange(0,100)*0.001#仅用于测试
-delta_v[1,:]=np.arange(0,100)*0.001#仅用于测试
+'''结束时间'''
+tend=150
+delta_v=np.zeros((feedforwardNum,tend))
+delta_v[0,:]=np.arange(0,tend)*0.001#仅用于测试
+delta_v[1,:]=np.arange(0,tend)*0.001#仅用于测试
 '''多mv输出平衡'''
 balance=0
 
@@ -53,8 +55,7 @@ hi=np.array([1, 1])
 '''Aim Matrix'''
 wi=np.array([0.5, 1])
 
-'''结束时间'''
-tend=100
+
 '''参数获得'''
 num=np.array([5,6,3,9])#di
 den=np.array([[3,1,3],[2,1,7],[1,2,5],[2,3,6]])#ai bi ci
@@ -125,7 +126,10 @@ S=np.zeros((p*Yt_result.shape[1],p*Yt_result.shape[1]))#[输出引脚*阶跃时�
 '''build矫正 H matrix'''
 for loop_outi in range(p):
     for loop_timei in range(Yt_result.shape[1]):
-        H[loop_timei+Yt_result.shape[1]*loop_outi,loop_outi]=1
+        if loop_timei==0:
+            H[loop_timei+Yt_result.shape[1]*loop_outi,loop_outi]=1
+        else:
+            H[loop_timei + Yt_result.shape[1] * loop_outi, loop_outi] = 0.7
 
 '''构造计算位移矩阵S'''
 for loop_outi in range(p):
@@ -207,6 +211,8 @@ y_Real=np.zeros((p,tend))
 '''输出'''
 U=np.zeros((m,tend))
 
+dmv=np.zeros((m,tend))
+
 '''L矩阵 只取即时控制增量'''
 L=np.zeros((m,M*m))
 for loopouti in range(m):
@@ -226,10 +232,10 @@ for loop_outi in range(p):
 B_time_series=A_N*-0.01
 
 print(A_time_series.shape[2])
-dmc=DynamicMatrixControl.DMC(A_time_series,R_t, Q, M, P, m, p)
-control_vector, dynamic_matrix=dmc.compute()
+dmc=DynamicMatrixControl.DMC(A_time_series,N,R_t, Q, M, P, m, p,[0.8,0.7])
+control_vector, dynamic_matrix,dynamic_matrix_N=dmc.compute()
 
-minJ=QP.MinJ(0,0,0,dynamic_matrix,Q,R_t,M,P,m,p,Umin,Umax,Ymin,Ymax)
+minJ=QP.MinJ(0,0,0,dynamic_matrix,Q,R_t,M,P,m,p,Umin,Umax,Ymin,Ymax,[0.8,0.7])
 
 for time_devi in range(tend-1):
     '''这里先开始输出原先的输出值U,deltaU=0 U(k)=U(k-1)+deltaU'''
@@ -242,6 +248,7 @@ for time_devi in range(tend-1):
     for pull_away_M in range(p):
         y_0P[pull_away_M * P:(pull_away_M + 1) * P, time_devi]= y_0N[pull_away_M * Yt_result.shape[1]:(pull_away_M) * Yt_result.shape[1] + P, time_devi]
     '''计算deltaD'''
+    #W_i=tools.biuldWi(p,P,wi, y_Real[:,time_devi],0.5)
     deltaD[:, time_devi] = W_i.transpose() - y_0P[:, time_devi]
 
     '''计算得到m个输入的M个连续的输出的deltaU'''
@@ -259,7 +266,7 @@ for time_devi in range(tend-1):
 
 
     '''检查增量下界上界'''
-    if((Umin<=willUM).all() and (Umax>=willUM).all() and   True or np.std(willUM)<0.01):
+    if((Umin<=willUM).all() and (Umax>=willUM).all() and  False  or np.std(willUM)<0.01):
         print("good U limit")
         willYP = np.dot(dynamic_matrix, deltaU[:, time_devi].reshape(m * M, 1))+y_0P[:,time_devi]
         if ((Ymin <= willYP).all() and (willYP <= Ymax).all()):
@@ -288,6 +295,7 @@ for time_devi in range(tend-1):
 
     '''得到m个输入的本次作用增量'''
     thisTimedelU=np.dot(L, deltaU[:,time_devi])
+    dmv[:,time_devi+1]=thisTimedelU
     '''加上本次增量的系统输入'''
     U[:,time_devi+1]=U[:,time_devi]+thisTimedelU.transpose()#这个里需要校验是否满足约束
     '''作用完成后，做预测数据计算'''

@@ -217,7 +217,8 @@ def objective(u_hat_seq_all,y_hat,response_vec_result,funnel_up,funnel_down,P,M,
     for i in range(P):
         dy_hat.append(np.dot(u_hat_seq_all,response_vec_result[i]))
     dy_hat = np.array(dy_hat).reshape(P,N)
-    y_hat0 += dy_hat    up_seq_diff = funnel_up - y_hat0
+    y_hat0 += dy_hat
+    up_seq_diff = funnel_up - y_hat0
 
     y_hat0 = y_hat0 + y_hat
     down_seq_diff = y_hat0 - funnel_down

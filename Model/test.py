@@ -1,15 +1,87 @@
 import numpy as np
 import sys
-if __name__=='__main__':
-    z=np.zeros(2)
-    kka=np.array([[1,2],[3,4]])
-    bkka=kka>1
-    intkka=kka*bkka.astype(int)
-    ikka=kka[0]
-    loop=np.array([[1],[2]]).reshape(1,-1)+np.array([1,2])
+import Help
 
-    for index ,c in np.ndenumerate(loop):
-        print(index)
+
+
+
+tools = Help.Tools()
+
+funels=tools.buildFunel(np.array([2,3]),np.array([0.2,0.2]),np.array([1,1]),10,2)
+
+wi=tools.biuldWiByFunel(2,8,10,np.array([1,2,3,4,5,6,7,8,9,10,1,2,3,4,5,6,7,8,9,10]).reshape(-1,1),funels)
+
+N=20
+coeff = np.array([1 - 0.8 ** i for i in range(1,N+1)])
+m=3
+p=2
+A=np.random.rand(p,m)
+Q=np.random.rand(p,p)
+delu=np.random.rand(m,1)
+C=np.random.rand(p,1)
+
+
+p=2
+P=20
+alphe=[0.7,0.8]
+alphecoeff = np.zeros((p * P, 1))
+for indexp in range(p):
+    alphecoeff[P * indexp:P * (indexp + 1)] = np.array([1 - alphe[indexp] ** i for i in range(1, P + 1)]).reshape(-1,1)
+alphediag = np.diagflat(alphecoeff)
+alphediag_2=np.power(np.diagflat(alphecoeff),2)
+
+
+
+t1=np.dot(np.dot(A.transpose(),Q),np.dot(A,delu)*C)
+
+Cdiag=np.diagflat(C)
+
+t2=np.dot(np.dot(np.dot(A.transpose(),Q),Cdiag),np.dot(A,delu))
+
+print('t1=',t1,'t2',t2)
+
+
+
+
+def biuldWi( p, P, wi,yreal,alph):
+    W_i = np.zeros((p * P, 1))
+
+    for indexp in range(p):
+        for indexP in range(P):
+            tempwp=(1-alph**(indexP+1))*wi[indexp]+alph**(indexP+1)*yreal[indexp]
+            W_i[indexp * P + indexP, 0]=tempwp
+    return W_i
+
+
+if __name__=='__main__':
+
+    aaaa=0.6**2
+    p=1
+    P=30
+    W_i=biuldWi(p,P,[10],[0],0.5)
+
+
+
+
+    firstonedmv=np.array([[1]])
+    limitdmv=np.array([[0,3]])
+    limitmv=np.array([[17,20]])
+    mv=np.array([6])
+    for index, needcheckdmv in np.ndenumerate(firstonedmv):
+        '''检查下dmv是否在限制之内'''
+        if (np.abs(needcheckdmv) > limitdmv[index[0], 1]):
+            firstonedmv[index[0], 0] = limitdmv[index[0], 1] if (firstonedmv[index[0]] > 0) else (
+                    -1 * limitdmv[index[0], 1])
+        '''dmv是否小于最小调节量，如果小于，则不进行调节'''
+        if (np.abs(needcheckdmv) <= limitdmv[index[0], 0]):
+            firstonedmv[index[0], 0] = 0
+        '''nv叠加dmv完成以后是否大于mvmax'''
+        if ((mv[index[0]] + firstonedmv[index[0]]) >= limitmv[index[0], 1]):
+            firstonedmv[index[0], 0] = limitmv[index[0], 1] - mv[index[0]]
+        '''nv叠加dmv完成以后是否大于mvmax'''
+        if ((mv[index[0]] + firstonedmv[index[0]]) <= limitmv[index[0], 0]):
+            firstonedmv[index[0], 0] = limitmv[index[0], 0] - mv[index[0]]
+
 
     d = {'1': 'one', '3': 'three', '2': 'two', '5': 'five', '4': 'four'}
     print("100" in d)

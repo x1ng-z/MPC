@@ -6,8 +6,9 @@ from scipy.optimize import Bounds
 class MinJ:
     '''
     deltav前馈增量
+    :arg alphe 柔化参数，用于保留最终误差，弱化初期误差shape=(,p),如[0.8,0.7]
     '''
-    def __init__(self,wp,y0,u0,A,Q,R,M,P,m,p,Umin,Umax,Ymin,Ymax):
+    def __init__(self,wp,y0,u0,A,Q,R,M,P,m,p,Umin,Umax,Ymin,Ymax,alphe):
         self.wp=wp
         self.y0=y0
         self.u0=u0
@@ -24,6 +25,7 @@ class MinJ:
         self.p=p
         self.Dumin=0
         self.Dumax=0
+        self.alphe=alphe
         #self.deltav=deltav
         #self.B_N=B_timeserial#数据矩阵形式(输出个数*响应序列长度，前馈个数)
         '''B矩阵，用于计算M个增量的变化'''
@@ -33,6 +35,13 @@ class MinJ:
                 for nodecol in range(M):
                     if (nodecol <= noderow):
                         self.B[indexIn * M + noderow, indexIn * M + nodecol] = 1
+
+        self.alphecoeff = np.zeros((self.p * self.P, 1))
+        for indexp in range(self.p):
+            self.alphecoeff[self.P * indexp:self.P * (indexp + 1)] = np.array(
+                [1 - self.alphe[indexp] ** i for i in range(1, self.P + 1)]).reshape(-1, 1)
+        self.alphediag =np.diagflat(self.alphecoeff)
+        self.alphediag_2=np.power(np.diagflat(self.alphecoeff), 2)# p*P
 
     def setDumin(self,Dumin):
         self.Dumin=Dumin
@@ -61,8 +70,9 @@ class MinJ:
         self.Ymax = Ymax
 
     def J(self, dmv):
-        e=(self.wp - (self.y0 + np.dot(self.dynamix_matrix, dmv))).transpose()
-        aa=np.dot(np.dot(e.transpose(), self.Q), e) + np.dot(np.dot(dmv.transpose(), self.R), dmv)
+        e=(self.wp - (self.y0 + np.dot(self.dynamix_matrix, dmv))).reshape(-1,1)
+        juste=e*self.alphecoeff
+        aa=np.dot(np.dot(juste.transpose(), self.Q), juste) + np.dot(np.dot(dmv.transpose(), self.R), dmv)
         # print("loss=",aa[0][0])
         return aa[0][0]
 
@@ -78,11 +88,13 @@ class MinJ:
     def gradientJ(self,deltu):
         will=self.wp-(self.y0 + np.dot(self.dynamix_matrix, deltu))
         # print(will[0,:].transpose())
-        gradient= np.dot(np.dot(-1*self.dynamix_matrix.transpose(), 2*self.Q), will[0, :]) +np.dot(2*self.R, deltu)
+        justQ=np.dot(self.Q, self.alphediag_2)
+        gradient= np.dot(np.dot(-2*self.dynamix_matrix.transpose(), justQ), will[0, :]) +np.dot(2*self.R, deltu)
         return gradient
 
     def hesionJ(self,deltu):
-        H=(2 * np.dot(np.dot(self.dynamix_matrix.transpose(), self.Q), self.dynamix_matrix) + 2 * self.R)
+        justQ = np.dot(self.Q, self.alphediag_2)
+        H=(2 * np.dot(np.dot(self.dynamix_matrix.transpose(), justQ), self.dynamix_matrix) + 2 * self.R)
         # print(H)
         return H.transpose()
 
