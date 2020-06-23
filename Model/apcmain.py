@@ -49,7 +49,7 @@ if __name__ == '__main__':
     while ((isEnable == 1) and (realvalidekey == modlevalidekey)):
 
         linesUpAndDown = tools.buildFunel(wp, deadZones, funelInitValues, MPC.N, MPC.p)
-        comstraindmv, firstmvs = MPC.rolling_optimization(wp, y0, ypv,mv, limitmv, limitdmv,linesUpAndDown)
+        comstraindmv, firstdmvs, originfristdmv = MPC.rolling_optimization(wp, y0, ypv, mv, limitmv, limitdmv, linesUpAndDown)
         predicty0 = MPC.predictive_control(y0, comstraindmv)
         '''新增加死区时间和漏斗初始值'''
         writemv = []
@@ -68,7 +68,7 @@ if __name__ == '__main__':
             else:
                 updatemvmat = updatemvmat + MPC.pvusemv[indexp]
         selectmvmat = updatemvmat > 0  # 大于0说明PV不在漏斗内，需要更新
-        writemv = mv + firstmvs.reshape(-1) * selectmvmat.astype(int).reshape(-1)
+        writemv = mv + firstdmvs.reshape(-1) * selectmvmat.astype(int).reshape(-1)
         payload = {'id': modleId, 'U': writemv.tolist(), 'validekey': modlevalidekey}
         write_resp = requests.post("http://localhost:8080/AILab/python/opcwrite.do", params=payload)
         if DEBUG:
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         payload = {'id': modleId, 'validekey': modlevalidekey
             , 'data': json.dumps(
                 {'mv': writemv.reshape(-1).tolist()
-                    , 'dmv': firstmvs.reshape(-1).tolist()
+                    , 'dmv': originfristdmv.reshape(-1).tolist()
                     , 'e': e.reshape(-1).tolist()
                     , 'predict': y0.reshape(-1).tolist()
                     , 'funelupAnddown': linesUpAndDown.tolist()

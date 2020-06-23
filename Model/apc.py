@@ -196,9 +196,9 @@ class apc:
             self.costtime = res.execution_time
             pass
 
-        comstraindmv,firstmv = self.mvconstraint(mv, dmv, limitmv, limitdmv)
+        comstraindmv,firstdmv,originfristdmv= self.mvconstraint(mv, dmv, limitmv, limitdmv)
 
-        return comstraindmv,firstmv
+        return comstraindmv,firstdmv,originfristdmv
 
     def feedback_correction(self, yreal, y0, lastmvfb, thistimemvfb, lastfffb, thistimefffb, ffdependregion):
         '''
@@ -274,6 +274,7 @@ class apc:
                       Returns:
                           True mv 加上增量后还在mv上下限范围内 and dmv也在该范围内
                           False 上述条件不满足
+                          origfristonedmv 经过修改的各个第一步dmv的量
                       '''
         '''dmv累加矩阵'''
 
@@ -284,6 +285,7 @@ class apc:
 
         '''本次要输出的dmv'''
         firstonedmv = np.dot(L, dmv)
+        origfristonedmv=firstonedmv.copy()
         for index, needcheckdmv in np.ndenumerate(firstonedmv):
             '''检查下dmv是否在限制之内'''
             if (np.abs(needcheckdmv) > limitdmv[index[0], 1]):
@@ -298,7 +300,7 @@ class apc:
             if ((mv[index[0]] + firstonedmv[index[0]]) <= limitmv[index[0], 0]):
                 firstonedmv[index[0],0] = limitmv[index[0], 0] - mv[index[0]]
 
-        return dmv,firstonedmv
+        return dmv,firstonedmv,origfristonedmv
 
     def checklimit(self, mv, dmv, limitmv, limitdmv):
         '''
