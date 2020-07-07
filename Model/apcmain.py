@@ -23,7 +23,7 @@ if __name__ == '__main__':
     tools = Help.Tools()
     MPC = apc.apc(modle["P"], modle["p"], modle["M"], modle["m"], modle["N"], modle["APCOutCycle"], modle["fnum"],
                   np.array(modle["A"]), (np.array(modle["B"]) if ("B" in modle) else []), np.array(modle["Q"]),
-                  np.array(modle["R"]), np.array(modle['pvusemv']),np.array(modle['alphe']))
+                  np.array(modle["R"]), np.array(modle['pvusemv']),np.array(modle['alphe']),np.array(modle['funneltype']))
     isEnable = modle["enable"]
     resp_opc = requests.get("http://localhost:8080/AILab/python/opcread/%d.do" % modleId)
     modle_init_data = json.loads(resp_opc.text)
@@ -48,8 +48,8 @@ if __name__ == '__main__':
     isEnable = modle_init_data['enable']
     while ((isEnable == 1) and (realvalidekey == modlevalidekey)):
 
-        linesUpAndDown = tools.buildFunel(wp, deadZones, funelInitValues, MPC.N, MPC.p)
-        comstraindmv, firstdmvs, originfristdmv = MPC.rolling_optimization(wp, y0, ypv, mv, limitmv, limitdmv, linesUpAndDown)
+        originalfunnels, decoratefunnels = tools.buildFunel(wp, deadZones, funelInitValues, MPC.N, MPC.p)
+        comstraindmv, firstdmvs, originfristdmv = MPC.rolling_optimization(wp, y0, ypv, mv, limitmv, limitdmv, decoratefunnels)
         predicty0 = MPC.predictive_control(y0, comstraindmv)
         '''新增加死区时间和漏斗初始值'''
         writemv = []
@@ -60,10 +60,10 @@ if __name__ == '__main__':
         '''
         updatemvmat = np.zeros(MPC.m)  # 需改更新的mv
         for indexp in range(MPC.p):
-            if ((linesUpAndDown[0, indexp * MPC.N:(indexp + 1) * MPC.N] >= y0[indexp * MPC.N:(indexp + 1) * MPC.N,
-                                                                           0]).all() and (
-                    linesUpAndDown[1, indexp * MPC.N:(indexp + 1) * MPC.N] <= y0[indexp * MPC.N:(indexp + 1) * MPC.N,
-                                                                              0]).all()):
+            if ((decoratefunnels[0, indexp * MPC.N:(indexp + 1) * MPC.N] >= y0[indexp * MPC.N:(indexp + 1) * MPC.N,
+                                                                            0]).all() and (
+                    decoratefunnels[1, indexp * MPC.N:(indexp + 1) * MPC.N] <= y0[indexp * MPC.N:(indexp + 1) * MPC.N,
+                                                                               0]).all()):
                 pass
             else:
                 updatemvmat = updatemvmat + MPC.pvusemv[indexp]
@@ -105,7 +105,7 @@ if __name__ == '__main__':
                     , 'dmv': originfristdmv.reshape(-1).tolist()
                     , 'e': e.reshape(-1).tolist()
                     , 'predict': y0.reshape(-1).tolist()
-                    , 'funelupAnddown': linesUpAndDown.tolist()
+                    , 'funelupAnddown': originalfunnels.tolist()
                  }
             )
                    }

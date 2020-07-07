@@ -39,14 +39,14 @@ class DMC:
         alphediag_2 = np.power(np.diagflat(alphecoeff),2)#p*P
         dynamic_matrix_P = np.zeros((self.P * self.p, self.M * self.m))  # P预测域内的响应矩阵动态矩阵
         dynamic_matrix_N = np.zeros((self.N * self.p, self.M * self.m))  # N全部响应序列的响应动态矩阵
-        for loopouti in range(self.p):
-            for loopini in range(self.m):
-                for loopmi in range(self.M):
-                    dynamic_matrix_P[self.P * loopouti + loopmi:self.P * (loopouti + 1),
-                    self.M * loopini + loopmi] = self.step_respon[loopouti, loopini, 0:self.P - loopmi]
+        for indexpi in range(self.p):
+            for indexmi in range(self.m):
+                for indexMi in range(self.M):
+                    dynamic_matrix_P[self.P * indexpi + indexMi:self.P * (indexpi + 1),
+                    self.M * indexmi + indexMi] = self.step_respon[indexpi, indexmi, 0:self.P - indexMi]
 
-                    dynamic_matrix_N[self.N * loopouti + loopmi:self.N * (loopouti + 1),
-                    self.M * loopini + loopmi] = self.step_respon[loopouti, loopini, 0:self.N - loopmi]
+                    dynamic_matrix_N[self.N * indexpi + indexMi:self.N * (indexpi + 1),
+                    self.M * indexmi + indexMi] = self.step_respon[indexpi, indexmi, 0:self.N - indexMi]
 
         justQ = np.dot(self.Q, alphediag_2)#调整的Q系数
         control_vector = np.dot(

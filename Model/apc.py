@@ -6,7 +6,7 @@ import Help
 
 class apc:
 
-    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri,pvusemv,alphe):
+    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri,pvusemv,alphe,funneltype):
         '''
                     function:
                         预测控制
@@ -24,6 +24,7 @@ class apc:
                            :arg ri 优化时间域矩阵,用于约束调整dmv的大小，在滚动优化部分
                            :arg pvusemv 一个矩阵，标记pv用了哪些mv
                            :arg alphe 柔化系数
+                           :arg funneltype 漏斗类型shape=(pv数量，2)：如pv数量为2 [[0,0],[1,0],[0,1]],[0,0]全漏斗，[1,0]下漏斗，[0,1]上漏斗
                     '''
 
         '''预测时域长度'''
@@ -102,8 +103,6 @@ class apc:
         '''算法运行时间'''
         self.costtime = 0
 
-        '''运行key值'''
-        self.key = 0
 
         self.solver_dmc = DynamicMatrixControl.DMC(A, self.N,self.R, self.Q, self.M, self.P, self.m, self.p,self.alphe)
         self.control_vector, self.dynamic_matrix_P,self.dynamic_matrix_N = self.solver_dmc.compute()
@@ -111,6 +110,12 @@ class apc:
         self.solver_qp = QP.MinJ(0, 0, 0, self.dynamic_matrix_P, self.Q, self.R, self.M, self.P, self.m, self.p, 0, 0, 0, 0,self.alphe)
 
         self.help = Help.Tools()
+
+        self.PINF = 2 ** 200  # 正无穷
+        self.NINF = -2 ** 200  # 负无穷
+        self.funneltype = funneltype
+
+
 
         pass
 
@@ -206,8 +211,8 @@ class apc:
                         反馈矫正
 
                    Args:
-                       :arg lastmvfb 上一次mv的反馈值shape(m,1)
-                       :arg thistimemvfb 本次mv的反馈值shape(m,1)
+                       :arg lastmvfb 上一次mv的反馈值shape(1，m)
+                       :arg thistimemvfb 本次mv的反馈值shape(1，m,)
                        :arg y0 pv预测初始化值
                        :arg yreal pv的实际值
                        :arg lastfffb 上一次前馈ff值
@@ -215,16 +220,6 @@ class apc:
                        :arg ffdependregion 前馈ff是否在上下限内
 
                    Returns:
-                       A dict mapping keys to the corresponding table row data
-                       fetched. Each row is represented as a tuple of strings. For
-                       example:
-
-                       {'Serak': ('Rigel VII', 'Preparer'),
-                        'Zim': ('Irk', 'Invader'),
-                        'Lrrr': ('Omicron Persei 8', 'Emperor')}
-
-                       If a key from the keys argument is missing from the dictionary,
-                       then that row was not found in the table.
                    '''
 
         '''作用完成后，做预测数据计算'''

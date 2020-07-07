@@ -40,8 +40,6 @@ class Tools:
 
     def biuldWiByFunel(self, p, P, N, y0, funels):
         '''
-
-
         :param p: pv数量
         :param P: 预测域大小
         :param N 响应序列长度
@@ -54,6 +52,7 @@ class Tools:
         W_i = np.zeros((p * P, 1))
 
         for indexp in range(p):
+            '''这里，响应和漏斗都是N的，要截取为P的'''
             upfunel = funels[0, indexp * N:(indexp) * N + P].copy()
             downfunel = funels[1, indexp * N:(indexp ) * N + P].copy()
             # 判断超过上funel，超过则获取 funle,不然则获取y0的
@@ -66,7 +65,7 @@ class Tools:
             W_i[indexp * P:(indexp+1)*P, 0] = y0P_rec+downfunel+upfunel
         return W_i
 
-    def buildFunel(self, wp, deadZones, funelInitValues, N, p):
+    def buildFunel(self, wp, deadZones, funelInitValues, N, p,funneltype,maxfunnelvale,minfunnelvale):
         '''
                      function:
                            构建漏斗
@@ -76,17 +75,26 @@ class Tools:
                          :arg funelInitValues 漏斗初始值
                          :arg N 阶跃响应数据点数量
                          :arg p pv数量
+                         :arg funneltype漏斗类型
+                         :arg maxfunnelvale上漏斗最大值
+                         ;:arg minfunnelvale 下漏斗最小值
                      Returns:
-                          返回的漏斗数据为shape为(2,p*N)
+                         :return originalfunnels 原始全漏斗数据为shape为(2,p*N)
                          funels=[ up1  up2..upN  pv的高限制都在这一行
                          donw1 donw2...donwN   pv的低限制都在这一行 ]
+
+                          :return decoratefunnels 根据漏斗类型修饰的漏斗数据为shape为(2,p*N)
+                         funels=[ up1  up2..upN  pv的高限制都在这一行
+                         donw1 donw2...donwN   pv的低限制都在这一行 ]
+
           '''
-        funels = np.zeros((2, p * N))
+        originalfunnels = np.zeros((2, p * N))
+        decoratefunnels=np.zeros((2, p * N))
         leftUpPointsY = wp + deadZones + funelInitValues
         leftDownPointsY = wp - deadZones - funelInitValues
         rightUpProintsY = wp + deadZones
         rightdDownProintsY = wp - deadZones
-
+        funnelmaxminmatrix=np.array([maxfunnelvale,minfunnelvale])
         for pvi in range(p):
             for lineNum in range(2):
                 Upki = 0
@@ -99,5 +107,6 @@ class Tools:
                     Upbi = leftDownPointsY[pvi]
 
                 for lineLimti in range(N):
-                    funels[lineNum, pvi * N + lineLimti] = Upki * lineLimti + Upbi
-        return funels
+                    originalfunnels[lineNum, pvi * N + lineLimti] = Upki * lineLimti + Upbi
+                    decoratefunnels[lineNum, pvi * N + lineLimti]=(Upki * lineLimti + Upbi)*funneltype[pvi,lineNum]*funnelmaxminmatrix[lineNum]
+        return originalfunnels,decoratefunnels
