@@ -2,11 +2,12 @@ import numpy as np
 import DynamicMatrixControl
 import QP
 import Help
+import matplotlib.pyplot as plt
 
 
 class apc:
 
-    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri,pvusemv,alphe,funneltype):
+    def __init__(self, P, p, M, m, N, outStep, feedforwardNum, A, B, qi, ri, pvusemv, alphe, funneltype):
         '''
                     function:
                         预测控制
@@ -49,9 +50,9 @@ class apc:
         self.feedforwardNum = feedforwardNum
 
         '''pv 使用mv的标记矩阵'''
-        self.pvusemv=pvusemv
+        self.pvusemv = pvusemv
 
-        self.alphe=alphe
+        self.alphe = alphe
 
         '''mv 对 pv 的阶跃响应'''
         self.A_step_response_sequence = np.zeros((p * N, m))
@@ -86,7 +87,7 @@ class apc:
         '''build矫正 H matrix'''
         for indexp in range(p):
             for indexn in range(N):
-                if indexn==0:
+                if indexn == 0:
                     self.H[indexn + N * indexp, indexp] = 1  # hi[loop_outi]
                 else:
                     self.H[indexn + N * indexp, indexp] = 0.7  # hi[loop_outi]
@@ -103,19 +104,18 @@ class apc:
         '''算法运行时间'''
         self.costtime = 0
 
+        self.solver_dmc = DynamicMatrixControl.DMC(A, self.N, self.R, self.Q, self.M, self.P, self.m, self.p,
+                                                   self.alphe)
+        self.control_vector, self.dynamic_matrix_P, self.dynamic_matrix_N = self.solver_dmc.compute()
 
-        self.solver_dmc = DynamicMatrixControl.DMC(A, self.N,self.R, self.Q, self.M, self.P, self.m, self.p,self.alphe)
-        self.control_vector, self.dynamic_matrix_P,self.dynamic_matrix_N = self.solver_dmc.compute()
-
-        self.solver_qp = QP.MinJ(0, 0, 0, self.dynamic_matrix_P, self.Q, self.R, self.M, self.P, self.m, self.p, 0, 0, 0, 0,self.alphe)
+        self.solver_qp = QP.MinJ(0, 0, 0, self.dynamic_matrix_P, self.Q, self.R, self.M, self.P, self.m, self.p, 0, 0,
+                                 0, 0, self.alphe)
 
         self.help = Help.Tools()
 
         self.PINF = 2 ** 200  # 正无穷
         self.NINF = -2 ** 200  # 负无穷
         self.funneltype = funneltype
-
-
 
         pass
 
@@ -132,7 +132,7 @@ class apc:
             '''
         return np.dot(self.dynamic_matrix_N, dmv) + y0
 
-    def rolling_optimization(self, wp, y0,ypv, mv, limitmv, limitdmv,funels):
+    def rolling_optimization(self, wp, y0, ypv, mv, limitmv, limitdmv, funels):
         '''
                function:
                     滚动优化
@@ -160,7 +160,7 @@ class apc:
 
         '''将sp值向量构建为shape=(p*P,1)'''
         # WP = self.help.biuldWi(self.p, self.P, wp,ypv,alph)
-        WP=self.help.biuldWiByFunel(self.p,self.P,self.N,y0,funels)
+        WP = self.help.biuldWiByFunel(self.p, self.P, self.N, y0, funels)
         '''提取每个pv的前P个预测值'''
         y_0P = np.zeros((self.p * self.P, 1))
         for indexp in range(self.p):
@@ -168,6 +168,25 @@ class apc:
 
         deltay = np.zeros((self.p * self.P, 1))
         deltay[:, 0] = WP.transpose() - y_0P[:, 0]
+
+        # fig, ax = plt.subplots()
+        # X = np.arange(0, self.P, 1)
+        # ax.plot(X, WP[:, 0], 'k-')
+        # ax.plot(X, funels[0,0:self.P ], 'g-')
+        # ax.plot(X, funels[1, 0:self.P], 'r-')
+        # plt.show()
+        #
+        # fig, ax = plt.subplots()
+        # X = np.arange(0, self.P, 1)
+        # ax.plot(X, y_0P[:, 0], 'y-')
+        # ax.plot(X, funels[0, 0:self.P], 'g-')
+        # ax.plot(X, funels[1, 0:self.P], 'r-')
+        # plt.show()
+        #
+        # fig, ax = plt.subplots()
+        # X = np.arange(0, self.P, 1)
+        # ax.plot(X, deltay[:, 0], 'y-')
+        # plt.show()
 
         '''
         1、先用动态矩阵求解器求解
@@ -201,9 +220,9 @@ class apc:
             self.costtime = res.execution_time
             pass
 
-        comstraindmv,firstdmv,originfristdmv= self.mvconstraint(mv, dmv, limitmv, limitdmv)
+        comstraindmv, firstdmv, originfristdmv = self.mvconstraint(mv, dmv, limitmv, limitdmv)
 
-        return comstraindmv,firstdmv,originfristdmv
+        return comstraindmv, firstdmv, originfristdmv
 
     def feedback_correction(self, yreal, y0, lastmvfb, thistimemvfb, lastfffb, thistimefffb, ffdependregion):
         '''
@@ -220,12 +239,13 @@ class apc:
                        :arg ffdependregion 前馈ff是否在上下限内
 
                    Returns:
+                       dff 前馈的增量
                    '''
 
         '''作用完成后，做预测数据计算'''
-        deltay = np.dot(self.A_step_response_sequence, (thistimemvfb - lastmvfb).reshape(-1,1))
+        deltay = np.dot(self.A_step_response_sequence, (thistimemvfb - lastmvfb).reshape(-1, 1))
         '''根据反馈计算出上一次mv作用后的预测曲线'''
-        y_predictionN = y0 + deltay.reshape(self.p*self.N,1)
+        y_predictionN = y0 + deltay.reshape(self.p * self.N, 1)
         '''等待到下一次将要输出时候，获取实际值，并与预测值的差距'''
         '''K矩阵 只取本次预测值'''
         K = np.zeros((self.p, self.p * self.N))
@@ -235,7 +255,7 @@ class apc:
         frist_y_predictionN = np.dot(K, y_predictionN)  # 提取上一个作用deltau后，第一个预测值
         # yreal[:, 0] = np.array(opcModleData['y0'])  # firstNodePredict.transpose()
         y_Real = np.zeros((self.p, 1))
-        y_Real[:,0]=yreal
+        y_Real[:, 0] = yreal
         e = y_Real - frist_y_predictionN
 
         y_Ncor = np.zeros((self.p * self.N, 1))
@@ -244,11 +264,13 @@ class apc:
         y_0N = np.zeros((self.p * self.N, 1))
         y_0N = np.dot(self.S, y_Ncor)
 
+        dff = np.zeros(1)
         if self.feedforwardNum != 0:
+            dff = thistimefffb - lastfffb
             y_0N = y_0N + np.dot(self.B_step_response_sequence,
-                                             ((thistimefffb - lastfffb) * ffdependregion).reshape(-1,1))
+                                 ((thistimefffb - lastfffb) * ffdependregion).reshape(-1, 1))
 
-        return e, y_0N
+        return e, y_0N, dff
 
     def mvconstraint(self, mv, dmv, limitmv, limitdmv):
         '''
@@ -280,22 +302,23 @@ class apc:
 
         '''本次要输出的dmv'''
         firstonedmv = np.dot(L, dmv)
-        origfristonedmv=firstonedmv.copy()
+        origfristonedmv = firstonedmv.copy()
         for index, needcheckdmv in np.ndenumerate(firstonedmv):
             '''检查下dmv是否在限制之内'''
             if (np.abs(needcheckdmv) > limitdmv[index[0], 1]):
-                firstonedmv[index[0],0] = limitdmv[index[0], 1] if (firstonedmv[index[0]] > 0) else (-1 * limitdmv[index[0], 1])
+                firstonedmv[index[0], 0] = limitdmv[index[0], 1] if (firstonedmv[index[0]] > 0) else (
+                            -1 * limitdmv[index[0], 1])
             '''dmv是否小于最小调节量，如果小于，则不进行调节'''
             if (np.abs(needcheckdmv) <= limitdmv[index[0], 0]):
-                firstonedmv[index[0],0] = 0
+                firstonedmv[index[0], 0] = 0
             '''nv叠加dmv完成以后是否大于mvmax'''
             if ((mv[index[0]] + firstonedmv[index[0]]) >= limitmv[index[0], 1]):
-                firstonedmv[index[0],0] = limitmv[index[0], 1] - mv[index[0]]
+                firstonedmv[index[0], 0] = limitmv[index[0], 1] - mv[index[0]]
             '''nv叠加dmv完成以后是否大于mvmax'''
             if ((mv[index[0]] + firstonedmv[index[0]]) <= limitmv[index[0], 0]):
-                firstonedmv[index[0],0] = limitmv[index[0], 0] - mv[index[0]]
+                firstonedmv[index[0], 0] = limitmv[index[0], 0] - mv[index[0]]
 
-        return dmv,firstonedmv,origfristonedmv
+        return dmv, firstonedmv, origfristonedmv
 
     def checklimit(self, mv, dmv, limitmv, limitdmv):
         '''

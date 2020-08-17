@@ -76,8 +76,8 @@ class Tools:
                          :arg N 阶跃响应数据点数量
                          :arg p pv数量
                          :arg funneltype漏斗类型
-                         :arg maxfunnelvale上漏斗最大值
-                         ;:arg minfunnelvale 下漏斗最小值
+                         :arg maxfunnelvale上漏斗最大值 近似正无穷
+                         ;:arg minfunnelvale 下漏斗最小值 近似负无穷
                      Returns:
                          :return originalfunnels 原始全漏斗数据为shape为(2,p*N)
                          funels=[ up1  up2..upN  pv的高限制都在这一行
@@ -108,5 +108,5 @@ class Tools:
 
                 for lineLimti in range(N):
                     originalfunnels[lineNum, pvi * N + lineLimti] = Upki * lineLimti + Upbi
-                    decoratefunnels[lineNum, pvi * N + lineLimti]=(Upki * lineLimti + Upbi)*funneltype[pvi,lineNum]*funnelmaxminmatrix[lineNum]
+                    decoratefunnels[lineNum, pvi * N + lineLimti]=(Upki * lineLimti + Upbi)+funneltype[pvi,lineNum]*funnelmaxminmatrix[lineNum]
         return originalfunnels,decoratefunnels

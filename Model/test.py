@@ -3,7 +3,7 @@ import sys
 import Help
 
 
-
+a=np.zeros(2)
 
 tools = Help.Tools()
 
