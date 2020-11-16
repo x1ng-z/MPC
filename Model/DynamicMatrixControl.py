@@ -3,7 +3,7 @@ import numpy as np
 
 class DMC:
 
-    def __init__(self, step_respon, N, R, Q, M, P, m, p, alphe):
+    def __init__(self, step_respon, N, R, Q, M, P, m, p, alphe,alphemethod):
         '''
             function:
                 预测控制
@@ -16,6 +16,7 @@ class DMC:
                 :arg m 输入长度
                 :arg p 输出长度
                 :arg alphe 柔化参数，用于保留最终误差，弱化初期误差shape=(,p),如[0.8,0.7]
+                :arg self.alphemethod 柔化系数方法
             Returns:
 
         '''
@@ -29,13 +30,18 @@ class DMC:
         self.m = m
         self.p = p
         self.alphe = alphe
+        self.alphemethod=alphemethod
 
     def compute(self):
         '''得到响应矩阵A'''
         alphecoeff = np.zeros((self.p * self.P, 1))
         for indexp in range(self.p):
-            alphecoeff[self.P * indexp:self.P * (indexp + 1)] = np.array(
+            if(self.alphemethod[indexp]=='before'):
+                alphecoeff[self.P * indexp:self.P * (indexp + 1)]= np.array(
                 [1 - self.alphe[indexp] ** i for i in range(1, self.P + 1)]).reshape(-1,1)
+            if(self.alphemethod[indexp]=='after'):
+                alphecoeff[self.P * indexp:self.P * (indexp + 1)] = np.flipud(np.array(
+                    [1 - self.alphe[indexp] ** i for i in range(1, self.P + 1)]).reshape(-1, 1))
         alphediag_2 = np.power(np.diagflat(alphecoeff),2)#p*P
         dynamic_matrix_P = np.zeros((self.P * self.p, self.M * self.m))  # P预测域内的响应矩阵动态矩阵
         dynamic_matrix_N = np.zeros((self.N * self.p, self.M * self.m))  # N全部响应序列的响应动态矩阵

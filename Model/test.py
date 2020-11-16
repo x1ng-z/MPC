@@ -1,6 +1,57 @@
 import numpy as np
 import sys
 import Help
+import matplotlib.pyplot as plt
+
+
+aaa=[]
+
+print(len(aaa))
+if aaa!=[]:
+    print(aaa.shape)
+matrixPvMvMapping=np.array([[1,1],[1,0]])
+aaa=matrixPvMvMapping.copy()
+a1=np.sum(matrixPvMvMapping,axis=0)
+b1=[1,2]
+print(a1/b1)
+
+nua=np.ones((2,3,4))
+aa=nua.shape
+
+print(aa[0])
+print(aa[1])
+print(aa[2])
+
+ll=np.array([1,2,3])
+print(ll)
+
+print(ll.reshape(-1))
+for index, needcheckdmv in np.ndenumerate(ll):
+    print(index[0])
+    print(needcheckdmv)
+
+print(matrixPvMvMapping)
+print(aaa)
+
+matrixPvMvMapping[matrixPvMvMapping==1]=[3,4,5]
+
+
+p=90
+aaa=np.array([1 - 0.95** i for i in range(1, p + 1)]).reshape(-1, 1)
+aaa2=np.array([1 - 0.8 ** i for i in range(1, p + 1)]).reshape(-1, 1)
+aaa3=np.array([1 - 0.5 ** i for i in range(1, p + 1)]).reshape(-1, 1)
+aaa4=np.array([1 - 0.1 ** i for i in range(1, p + 1)]).reshape(-1, 1)
+
+# aaa=np.flipud(aaa)
+
+plt.figure()
+X = np.arange(0, p, 1)
+plt.plot(X,aaa, 'k-',label="0.95")
+plt.plot(X,aaa2, 'g-',label="0.8")
+plt.plot(X,aaa3, 'r-',label="0.5")
+plt.plot(X,aaa4, 'b-',label="0.1")
+plt.legend(loc='upper right')#绘制曲线图例，信息来自类型label
+plt.show()
 
 
 a=np.zeros(2)

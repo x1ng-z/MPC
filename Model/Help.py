@@ -110,3 +110,48 @@ class Tools:
                     originalfunnels[lineNum, pvi * N + lineLimti] = Upki * lineLimti + Upbi
                     decoratefunnels[lineNum, pvi * N + lineLimti]=(Upki * lineLimti + Upbi)+funneltype[pvi,lineNum]*funnelmaxminmatrix[lineNum]
         return originalfunnels,decoratefunnels
+
+
+    def build_B_respond(self,origionB):
+        p=origionB.shape[0]
+        f=origionB.shape[1]#feedforwardNum
+        N=origionB.shape[2]
+        B_step_response_sequence = np.zeros((p * N, f))
+        for outi in range(p):
+            for ini in range(f):
+                B_step_response_sequence[outi * N:(outi + 1) * N, ini] = origionB[outi, ini]
+
+        return B_step_response_sequence
+    def build_A_respond(self,origionA):
+        p=origionA.shape[0]
+        m=origionA.shape[1]
+        N=origionA.shape[2]
+        origion_A_step_response_sequence = np.zeros((p * N, m))
+        for loop_outi in range(p):
+            for loop_ini in range(m):
+                origion_A_step_response_sequence[N * loop_outi:N * (loop_outi + 1),
+                loop_ini] = origionA[loop_outi, loop_ini, :]
+        return origion_A_step_response_sequence
+
+
+    def getFirstY0Position(self,matrixPvMvMapping):
+            '''
+            根据映射矩阵，将y0转换为映射前数量的y0
+            '''
+            p = matrixPvMvMapping.shape[0]
+            m = matrixPvMvMapping.shape[1]
+            y0Positon=np.zeros(p)
+            indexmapping=0
+            for indexp in range(p):
+                isNewRow=True
+                for indexm in range(m):
+                    if (matrixPvMvMapping[indexp][indexm] == 1):
+                        if isNewRow:
+                            y0Positon[indexp]=indexmapping
+                            isNewRow=False
+                        indexmapping=indexmapping+1
+
+            return y0Positon
+
+
+

@@ -8,7 +8,7 @@ class MinJ:
     deltav前馈增量
     :arg alphe 柔化参数，用于保留最终误差，弱化初期误差shape=(,p),如[0.8,0.7]
     '''
-    def __init__(self,wp,y0,u0,A,Q,R,M,P,m,p,Umin,Umax,Ymin,Ymax,alphe):
+    def __init__(self,wp,y0,u0,A,Q,R,M,P,m,p,Umin,Umax,Ymin,Ymax,alphe,alphemethod):
         self.wp=wp
         self.y0=y0
         self.u0=u0
@@ -26,6 +26,7 @@ class MinJ:
         self.Dumin=0
         self.Dumax=0
         self.alphe=alphe
+        self.alphemethod=alphemethod
         #self.deltav=deltav
         #self.B_N=B_timeserial#数据矩阵形式(输出个数*响应序列长度，前馈个数)
         '''B矩阵，用于计算M个增量的变化'''
@@ -38,8 +39,12 @@ class MinJ:
 
         self.alphecoeff = np.zeros((self.p * self.P, 1))
         for indexp in range(self.p):
-            self.alphecoeff[self.P * indexp:self.P * (indexp + 1)] = np.array(
-                [1 - self.alphe[indexp] ** i for i in range(1, self.P + 1)]).reshape(-1, 1)
+            if (self.alphemethod[indexp] == 'before'):
+                self.alphecoeff[self.P * indexp:self.P * (indexp + 1)] = np.array(
+                    [1 - self.alphe[indexp] ** i for i in range(1, self.P + 1)]).reshape(-1, 1)
+            if (self.alphemethod[indexp] == 'after'):
+                self.alphecoeff[self.P * indexp:self.P * (indexp + 1)] = np.flipud(np.array(
+                    [1 - self.alphe[indexp] ** i for i in range(1, self.P + 1)]).reshape(-1, 1))
         self.alphediag =np.diagflat(self.alphecoeff)
         self.alphediag_2=np.power(np.diagflat(self.alphecoeff), 2)# p*P
 
@@ -106,6 +111,7 @@ class MinJ:
         :return:
         '''
         bounds = Bounds( -1*self.Dumax.reshape(-1), self.Dumax.reshape(-1))
+        ##lb <= A.dot(x) <= ub
         linear_constraintu = LinearConstraint(self.B , (self.Umin-self.u0).transpose()[0,:],(self.Umax-self.u0).transpose()[0,:])
         #linear_constrainty = LinearConstraint(self.A,(self.Ymin-self.y0).transpose()[0,:],(self.Ymax-self.y0).transpose()[0,:])
         x0=np.zeros(self.M*self.m).transpose()
