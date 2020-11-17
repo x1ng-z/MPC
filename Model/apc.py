@@ -311,7 +311,7 @@ class apc:
         origiony0=np.zeros((p*N,1))
         originalfunnels=np.zeros((2,p*N))
         indexp=0
-        for position in Y0Position:
+        for position in Y0Position.astype(np.int32):
             origiony0[indexp*N:(indexp+1)*N,0]=y0[position*N:(position+1)*N,0]
             originalfunnels[:,indexp*N:(indexp+1)*N]=funnels[:,position*N:(position+1)*N]
             indexp=indexp+1
@@ -341,9 +341,9 @@ class apc:
         dff = np.zeros(1)
         if Origionapc.origion_B_step_response_sequence!=[]:
             dff = thistimefffb - lastfffb
-            y_0N = y_0N + np.dot(Origionapc.B_step_response_sequence,
+            y_0N = y_0N + np.dot(Origionapc.origion_B_step_response_sequence,
                                  ((thistimefffb - lastfffb) * ffdependregion).reshape(-1, 1))
-
+        '''将预测的pv曲线按照映射的关系矩阵展开'''
         y0_copy=y0.copy()
         indexmapping=0
         for indexp in range(p):
@@ -394,10 +394,10 @@ class apc:
             '''dmv是否小于最小调节量，如果小于，则不进行调节'''
             if (np.abs(needcheckdmv) <= limitdmv[index[0], 0]):
                 firstonedmv[index[0], 0] = 0
-            '''nv叠加dmv完成以后是否大于mvmax'''
+            '''mv叠加dmv完成以后是否大于mvmax'''
             if ((mv[index[0]] + firstonedmv[index[0]]) >= limitmv[index[0], 1]):
                 firstonedmv[index[0], 0] = limitmv[index[0], 1] - mv[index[0]]
-            '''nv叠加dmv完成以后是否大于mvmax'''
+            '''mv叠加dmv完成以后是否小于于mvmmin'''
             if ((mv[index[0]] + firstonedmv[index[0]]) <= limitmv[index[0], 0]):
                 firstonedmv[index[0], 0] = limitmv[index[0], 0] - mv[index[0]]
 
@@ -437,11 +437,11 @@ class apc:
             '''dmv是否小于最小调节量，如果小于，则不进行调节'''
             if (np.abs(needcheckdmv) <= limitdmv[index[0], 0]):
                 firstonedmv[index[0], 0] = 0
-            '''nv叠加dmv完成以后是否大于mvmax'''
+            '''mv叠加dmv完成以后是否大于mvmax'''
             if ((mv[index[0]] + firstonedmv[index[0]]) >= limitmv[index[0], 1]):
                 #        增量            =        高限        -       当前值
                 firstonedmv[index[0], 0] = limitmv[index[0], 1] - mv[index[0]]
-            '''nv叠加dmv完成以后是否大于mvmax'''
+            '''mv叠加dmv完成以后是否小于mvmin'''
             if ((mv[index[0]] + firstonedmv[index[0]]) <= limitmv[index[0], 0]):
                 #        增量            =        低限        -       当前值
                 firstonedmv[index[0], 0] = limitmv[index[0], 0] - mv[index[0]]

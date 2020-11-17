@@ -88,7 +88,7 @@ class Tools:
                          donw1 donw2...donwN   pv的低限制都在这一行 ]
 
           '''
-        originalfunnels = np.zeros((2, p * N))
+        undecoratefunnels = np.zeros((2, p * N))
         decoratefunnels=np.zeros((2, p * N))
         leftUpPointsY = wp + deadZones + funelInitValues
         leftDownPointsY = wp - deadZones - funelInitValues
@@ -107,9 +107,9 @@ class Tools:
                     Upbi = leftDownPointsY[pvi]
 
                 for lineLimti in range(N):
-                    originalfunnels[lineNum, pvi * N + lineLimti] = Upki * lineLimti + Upbi
+                    undecoratefunnels[lineNum, pvi * N + lineLimti] = Upki * lineLimti + Upbi
                     decoratefunnels[lineNum, pvi * N + lineLimti]=(Upki * lineLimti + Upbi)+funneltype[pvi,lineNum]*funnelmaxminmatrix[lineNum]
-        return originalfunnels,decoratefunnels
+        return undecoratefunnels,decoratefunnels
 
 
     def build_B_respond(self,origionB):

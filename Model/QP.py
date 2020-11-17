@@ -107,11 +107,11 @@ class MinJ:
     def comput(self):
         '''
         The bound constraints 0≤x0≤1 and −0.5≤x1≤2.0 are defined using a Bounds object.
-        bounds = Bounds([0, -0.5], [1.0, 2.0])
+        bounds = Bounds([0, -0.5], [1.0, 2.0])#增量不能超过dmvmax
         :return:
         '''
         bounds = Bounds( -1*self.Dumax.reshape(-1), self.Dumax.reshape(-1))
-        ##lb <= A.dot(x) <= ub
+        ##lb <= A.dot(x) <= ub #累计增量+mv初始值不能超过umax umin
         linear_constraintu = LinearConstraint(self.B , (self.Umin-self.u0).transpose()[0,:],(self.Umax-self.u0).transpose()[0,:])
         #linear_constrainty = LinearConstraint(self.A,(self.Ymin-self.y0).transpose()[0,:],(self.Ymax-self.y0).transpose()[0,:])
         x0=np.zeros(self.M*self.m).transpose()
