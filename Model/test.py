@@ -2,9 +2,18 @@ import numpy as np
 import sys
 import Help
 import matplotlib.pyplot as plt
+import json
 
 
-aaa=[]
+str = '{"key": "wwww", "word": "qqqq"}'
+j = json.loads(str)
+a=json.dumps(j)
+
+
+
+aaaaa=True
+aaaaa=(aaaaa==False)
+aaa=np.array([1,2]).reshape(-1,1)
 
 print(len(aaa))
 if aaa!=[]:

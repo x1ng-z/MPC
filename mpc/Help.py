@@ -137,8 +137,6 @@ class Tools:
     def getFirstY0Position(self,matrixPvMvMapping):
             '''
             根据映射矩阵，将y0转换为映射前数量的y0
-            [[1,1],
-            [0,1]]   其实就是获取第一次各个pv的y0出现的位置，如例子y0Positon=[0,2]
             '''
             p = matrixPvMvMapping.shape[0]
             m = matrixPvMvMapping.shape[1]

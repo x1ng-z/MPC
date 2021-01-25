@@ -20,6 +20,7 @@ class OrigionAPC:
         self.N=N
         self.origion_A_step_response_sequence=[]
         self.origion_B_step_response_sequence=[]
+        self.isffNumzero=True
         self.H = np.zeros((p * N, p))  # [输出引脚*阶跃时序长度，输出引脚]
 
         '''build矫正 H matrix'''
@@ -48,6 +49,7 @@ class OrigionAPC:
 
     def setOrigion_B_step_response_sequence(self,origion_B_step_response_sequence):
         self.origion_B_step_response_sequence=origion_B_step_response_sequence
+        self.isffNumzero = False
 
     def getOrigion_B_step_response_sequence(self):
         return self.origion_B_step_response_sequence
@@ -176,13 +178,14 @@ if __name__ == '__main__':
             #                                   ff, (np.array(modle_real_data["FF"]) if ('FF' in modle_real_data) else []),
             #                                   (np.array(modle_real_data["FFLmt"]) if ('FFLmt' in modle_real_data) else []))
 
+
             e, y_0N,y_0send, _dff,funnel_send = MPC.feedback_correction_for_simulate(Origionapc,
                                                                                      matrixPvMvMapping,
                                                                                      Y0Position,
                                                                                      np.array(modle_real_data['origiony0']),
                                                                                      y0,
                                                                                      originstructmvfb,
-                                                                                     np.array(modle_init_data['originstructmvfb']),
+                                                                                     np.array(modle_real_data['originstructmvfb']),
                                                                                      ff,
                                                                                      (np.array(modle_real_data["FF"]) if ('FF' in modle_real_data) else []),
                                                                                      (np.array(modle_real_data["FFLmt"]) if ('FFLmt' in modle_real_data) else []),
@@ -194,14 +197,14 @@ if __name__ == '__main__':
             # limitdmv = np.array(modle_real_data['limitDU'])#dmv限制
             # mv = np.array(modle_real_data['U'])  # mv值
             # mvfb = np.array(modle_real_data['UFB'])  # mv反馈
-            limitmv = np.array(modle_init_data['limitU'])  # 拆分映射的mv上下限
-            origionstructlimitmv = np.array(modle_init_data['origionstructlimitmv'])  # 原始结构的mv上下限
-            limitdmv = np.array(modle_init_data['limitDU'])  # ([[0.1,0.2],[0.1,0.2]])#拆分映射的dmv上下限
-            origionstructlimitDmv = np.array(modle_init_data['origionstructlimitDmv'])  # 原始结构的dmv上下限
-            mv = np.array(modle_init_data['U'])  # 原始结构的mv
-            origionstructmv = np.array(modle_init_data['origionstructmv'])  # 原始结构的mv
-            mvfb = np.array(modle_init_data['UFB'])  # 原始结构的fbmv
-            originstructmvfb = np.array(modle_init_data['originstructmvfb'])  # 原始结构的fbmv
+            limitmv = np.array(modle_real_data['limitU'])  # 拆分映射的mv上下限
+            origionstructlimitmv = np.array(modle_real_data['origionstructlimitmv'])  # 原始结构的mv上下限
+            limitdmv = np.array(modle_real_data['limitDU'])  # ([[0.1,0.2],[0.1,0.2]])#拆分映射的dmv上下限
+            origionstructlimitDmv = np.array(modle_real_data['origionstructlimitDmv'])  # 原始结构的dmv上下限
+            mv = np.array(modle_real_data['U'])  # 原始结构的mv
+            origionstructmv = np.array(modle_real_data['origionstructmv'])  # 原始结构的mv
+            mvfb = np.array(modle_real_data['UFB'])  # 原始结构的fbmv
+            originstructmvfb = np.array(modle_real_data['originstructmvfb'])  # 原始结构的fbmv
 
 
 
@@ -216,11 +219,12 @@ if __name__ == '__main__':
                 break
             payload = {'id': modleId, 'validekey': modlevalidekey
                 , 'data': json.dumps(
-                    {'dmv': origionstruct_firstonedmv.reshape(-1).tolist()
+                    {'dmv': originfristdmv.reshape(-1).tolist()
                         , 'e': e.reshape(-1).tolist()
                         , 'dff': _dff.reshape(-1).tolist()
                         , 'predict': y_0send.reshape(-1).tolist()
                         , 'funelupAnddown': funnel_send.tolist()
+                        , "writedmv": origionstruct_firstonedmv.reshape(-1).tolist()
                      }
                 )
                        }
